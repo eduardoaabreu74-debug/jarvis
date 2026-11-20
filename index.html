@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#020b12">
+<title>Jarvis</title>
+<style>
+  :root{
+    --hud:"Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,sans-serif;
+    --panel:rgba(10,32,46,.72); --line:rgba(62,224,255,.22);
+    --cyan:#3ee0ff; --cyan2:#8af1ff; --dim:#6f8fa0; --text:#dff7ff; --warn:#ffb454; --ok:#4dff9a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:system-ui,-apple-system,Roboto,sans-serif;color:var(--text);
+    background:radial-gradient(ellipse at 50% 70%,#06283a 0%,#03131e 45%,#000 100%);
+    display:flex;flex-direction:column;overflow:hidden;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:.25;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:42px 42px;-webkit-mask-image:radial-gradient(ellipse at center,#000 20%,transparent 75%);mask-image:radial-gradient(ellipse at center,#000 20%,transparent 75%);
+  }
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 8px;position:relative;z-index:2}
+  .brand{font-family:var(--hud);font-weight:700;letter-spacing:.42em;font-size:22px;color:var(--cyan);text-shadow:0 0 14px rgba(62,224,255,.6)}
+  .status{font-family:var(--hud);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+  body[data-phase="listening"] .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+  body[data-phase="thinking"] .dot,body[data-phase="searching"] .dot{background:var(--warn);box-shadow:0 0 10px var(--warn)}
+  body[data-phase="speaking"] .dot{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+  .iconbtn{background:none;border:1px solid var(--line);color:var(--cyan2);border-radius:10px;width:38px;height:38px;font-size:18px;cursor:pointer}
+
+  #log{flex:1;overflow-y:auto;padding:8px 16px 4px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}
+  .msg{max-width:86%;padding:10px 14px;border-radius:14px;line-height:1.45;font-size:15px;white-space:pre-wrap;word-wrap:break-word}
+  .msg.user{align-self:flex-end;background:rgba(62,224,255,.14);border:1px solid rgba(62,224,255,.3)}
+  .msg.jarvis{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+  .msg.jarvis .who{display:block;font-family:var(--hud);font-weight:700;font-size:11px;letter-spacing:.25em;color:var(--cyan);margin-bottom:3px}
+  .msg.jarvis .src{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
+  .msg.jarvis .src a{font-size:11.5px;color:var(--cyan2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:3px 9px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msg.sys{align-self:center;font-size:12.5px;color:var(--warn);background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.25);text-align:center;max-width:94%}
+  .empty{margin:auto;text-align:center;color:var(--dim);font-size:14px;line-height:1.6;padding:20px}
+
+  #live{min-height:24px;padding:2px 22px;text-align:center;color:var(--cyan2);font-size:15px;font-style:italic;position:relative;z-index:2}
+
+  .core-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 10px;position:relative;z-index:2}
+  #core{position:relative;width:170px;height:170px;border-radius:50%;border:none;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  #core svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .r1,.r2,.r3,.heart{transform-origin:100px 100px}
+  .r1{animation:spin 24s linear infinite}
+  .r2{animation:spin 16s linear infinite reverse}
+  .r3{animation:spin 40s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
+  @keyframes breathe{0%,100%{filter:drop-shadow(0 0 6px #3ee0ff)}50%{filter:drop-shadow(0 0 22px #3ee0ff)}}
+  body[data-phase="off"] #core svg{opacity:.6}
+  body[data-phase="listening"] .heart{animation:pulse 1.1s ease-in-out infinite}
+  body[data-phase="listening"] .r2{stroke:var(--ok)}
+  body[data-phase="thinking"] .r1,body[data-phase="searching"] .r1{animation-duration:2.2s}
+  body[data-phase="thinking"] .r2,body[data-phase="searching"] .r2{animation-duration:1.4s;stroke:var(--warn)}
+  body[data-phase="searching"] .r3{animation-duration:3s;stroke:var(--warn)}
+  body[data-phase="speaking"] #core svg{animation:breathe .9s ease-in-out infinite}
+  body[data-phase="speaking"] .heart{animation:pulse .6s ease-in-out infinite}
+  body[data-phase="tap"] .heart{animation:pulse 2s ease-in-out infinite}
+  .core-label{font-family:var(--hud);font-weight:600;letter-spacing:.2em;text-transform:uppercase;font-size:14px;color:var(--cyan2)}
+  #hint{font-size:12.5px;color:var(--dim);text-align:center;padding:0 24px;min-height:16px}
+  #endBtn{display:none;background:rgba(255,80,80,.12);border:1px solid rgba(255,90,90,.45);color:#ffb3b3;border-radius:999px;padding:6px 16px;font:600 12px var(--hud);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+  body.active #endBtn{display:inline-block}
+
+  #loadBox{display:none;width:min(320px,80vw);text-align:center}
+  #loadBox.show{display:block}
+  .bar{height:6px;border-radius:99px;background:rgba(62,224,255,.15);overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3ee0ff,#8af1ff);box-shadow:0 0 10px #3ee0ff;transition:width .3s}
+  #loadText{font-size:12.5px;color:var(--cyan2)}
+
+  form.ask{display:flex;gap:8px;padding:6px 14px 14px;position:relative;z-index:2}
+  form.ask input{flex:1;min-width:0;background:rgba(5,22,33,.85);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 14px;font:15px system-ui,Roboto,sans-serif;outline:none}
+  form.ask input:focus{border-color:var(--cyan)}
+  form.ask button{background:var(--cyan);color:#012;border:none;border-radius:12px;padding:0 16px;font:700 14px var(--hud);letter-spacing:.12em;cursor:pointer}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  .overlay.open{display:flex}
+  .sheet{width:100%;max-width:480px;max-height:92vh;overflow-y:auto;background:#061a26;border:1px solid var(--line);border-radius:18px 18px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom))}
+  .sheet h2{font-family:var(--hud);letter-spacing:.25em;color:var(--cyan);font-size:16px;margin-bottom:14px}
+  .sheet p{font-size:13.5px;line-height:1.55;color:#b9d6e2;margin-bottom:10px}
+  .sheet a{color:var(--cyan2)}
+  .row{margin-bottom:15px}
+  .row label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+  .row select,.row input[type=text],.row input[type=password]{width:100%;background:#031019;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:14px system-ui,Roboto,sans-serif}
+  .row input[type=range]{width:100%}
+  .btns{display:flex;gap:10px;flex-wrap:wrap}
+  .sheet button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--cyan2);font:600 14px var(--hud);letter-spacing:.12em;cursor:pointer}
+  .sheet button.primary{background:var(--cyan);color:#012;border:none}
+  .sheet button.danger{border-color:rgba(255,90,90,.45);color:#ffb3b3}
+  .sheet button:disabled{opacity:.4}
+  .note{font-size:12px;color:var(--dim);line-height:1.5;margin-top:5px}
+  .err{color:#ff9d9d;font-size:12.5px;margin-top:6px;line-height:1.45}
+  .status{white-space:nowrap}
+  @media (max-width:430px){ .brand{letter-spacing:.28em;font-size:19px} .status{font-size:11.5px;letter-spacing:.12em;gap:6px} }
+  #installBar{position:relative;z-index:3;margin:4px 14px 6px;padding:10px 12px;border-radius:14px;display:flex;align-items:center;gap:10px;
+    background:linear-gradient(90deg,rgba(62,224,255,.18),rgba(62,224,255,.06));border:1px solid rgba(62,224,255,.45);font-size:13.5px}
+  #installBar[hidden]{display:none}
+  #installBar span{flex:1;line-height:1.35}
+  #installBar button{background:var(--cyan);color:#012;border:none;border-radius:10px;padding:9px 14px;font:700 13px var(--hud);letter-spacing:.12em;cursor:pointer}
+  .chip{font-family:var(--hud);font-size:10.5px;letter-spacing:.16em;padding:2px 7px;border-radius:99px;border:1px solid rgba(77,255,154,.45);color:var(--ok);margin-left:4px}
+  .chip.off{border-color:rgba(255,180,84,.5);color:var(--warn)}
+  .sec{font-family:var(--hud);letter-spacing:.2em;color:var(--cyan);font-size:13px;margin:18px 0 10px;border-top:1px solid var(--line);padding-top:14px}
+  #offlineStatus{font-size:13.5px;line-height:1.5;padding:10px 12px;border-radius:12px;margin:0 0 16px;border:1px solid var(--line);background:rgba(62,224,255,.06)}
+  #offlineStatus.ok{border-color:rgba(77,255,154,.45);color:var(--ok)}
+  #offlineStatus.todo{border-color:rgba(255,180,84,.45);color:var(--warn)}
+  details.adv{border-top:1px solid var(--line);padding-top:10px}
+  details.adv summary{cursor:pointer;color:var(--dim);font-size:14px;padding:6px 0}
+  label.check{display:flex!important;align-items:center;gap:10px;color:var(--text)!important}
+  label.check input{width:20px;height:20px}
+  #diag{font-size:12.5px;line-height:1.7;color:#b9d6e2;margin-top:8px;white-space:pre-line}
+</style>
+</head>
+<body data-phase="off">
+  <header>
+    <div class="brand">JARVIS</div>
+    <div class="status"><span class="dot"></span><span id="statusText">Em espera</span><span class="chip" id="netChip">ONLINE</span></div>
+    <button class="iconbtn" id="openSettings" aria-label="Configurações">⚙</button>
+  </header>
+
+  <div id="installBar" hidden>
+    <span>Instale o Jarvis como aplicativo no seu celular</span>
+    <button id="installNow">INSTALAR</button>
+  </div>
+
+  <main id="log">
+    <div class="empty" id="empty">Toque no núcleo e fale.<br>Toque de novo quando quiser encerrar.</div>
+  </main>
+
+  <div id="live"></div>
+
+  <section class="core-wrap">
+    <button id="core" aria-label="Iniciar ou encerrar conversa">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <radialGradient id="g" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#e9fdff"/>
+            <stop offset="35%" stop-color="#3ee0ff"/>
+            <stop offset="100%" stop-color="#3ee0ff" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle class="r3" cx="100" cy="100" r="96" fill="none" stroke="#3ee0ff" stroke-opacity=".35" stroke-width="1" stroke-dasharray="2 6"/>
+        <circle class="r1" cx="100" cy="100" r="84" fill="none" stroke="#3ee0ff" stroke-width="3" stroke-dasharray="60 22 8 22"/>
+        <circle class="r2" cx="100" cy="100" r="68" fill="none" stroke="#8af1ff" stroke-width="2" stroke-dasharray="4 10"/>
+        <circle cx="100" cy="100" r="54" fill="none" stroke="#3ee0ff" stroke-opacity=".5" stroke-width="1"/>
+        <g class="heart">
+          <circle cx="100" cy="100" r="44" fill="url(#g)" opacity=".55"/>
+          <circle cx="100" cy="100" r="20" fill="#e9fdff"/>
+        </g>
+      </svg>
+    </button>
+    <div class="core-label" id="coreLabel">Toque para iniciar</div>
+    <div id="loadBox"><div id="loadText">Carregando…</div><div class="bar"><i id="loadBar"></i></div></div>
+    <div id="hint"></div>
+    <button id="endBtn">Encerrar</button>
+  </section>
+
+  <form class="ask" id="typeForm" autocomplete="off">
+    <input id="typeInput" placeholder="Ou digite sua pergunta…" enterkeyhint="send">
+    <button type="submit">ENVIAR</button>
+  </form>
+
+  <!-- Preparar (uma vez só) -->
+  <div class="overlay" id="welcome" role="dialog" aria-modal="true">
+    <div class="sheet">
+      <h2>PREPARAR O JARVIS</h2>
+      <p>Toque no botão abaixo <b>uma vez</b>, com Wi‑Fi. O Jarvis baixa o que precisa e guarda no celular.</p>
+      <p>Depois disso ele funciona <b>com ou sem internet</b>. Com internet, ele pesquisa. Sem internet, ele responde com o que já sabe.</p>
+      <div class="note" id="modelAdvice"></div>
+      <div class="err" id="gpuErr"></div>
+      <div class="btns" style="margin-top:14px">
+        <button id="welcomeLater">DEPOIS</button>
+        <button class="primary" id="downloadBtn">PREPARAR JARVIS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configurações -->
+  <div class="overlay" id="settings" role="dialog" aria-modal="true">
+    <div class="sheet">
+      <h2>CONFIGURAÇÕES</h2>
+      <div id="offlineStatus" class="ready">Verificando…</div>
+      <div class="row">
+        <label for="voiceSel">Voz do Jarvis</label>
+        <select id="voiceSel"></select>
+      </div>
+      <div class="row">
+        <label for="pitchSel">Tom da voz (mais grave ← → mais agudo)<span id="pitchVal" hidden></span></label>
+        <input type="range" id="pitchSel" min="0.5" max="1.5" step="0.05">
+      </div>
+      <div class="row">
+        <label for="rateSel">Velocidade da fala<span id="rateVal" hidden></span></label>
+        <input type="range" id="rateSel" min="0.8" max="1.4" step="0.05">
+      </div>
+      <div class="row">
+        <label for="cityInput">Sua cidade (para o clima)</label>
+        <input type="text" id="cityInput" placeholder="Ex.: Salvador">
+      </div>
+      <div class="btns" style="margin-bottom:12px">
+        <button id="testVoice">OUVIR A VOZ</button>
+        <button id="clearChat">LIMPAR CONVERSA</button>
+      </div>
+
+      <details class="adv">
+        <summary>Avançado</summary>
+        <div class="row" style="margin-top:12px">
+          <label for="modelSel">Tamanho do cérebro</label>
+          <select id="modelSel"></select>
+          <div class="note">Escolhido automaticamente. Troque só se ficar lento (use Leve) ou se quiser mais inteligência (Forte).</div>
+        </div>
+        <div class="row">
+          <label for="silenceSel">Pausa para entender que você terminou<span id="silVal" hidden></span></label>
+          <input type="range" id="silenceSel" min="1" max="3" step="0.1">
+        </div>
+        <div class="row">
+          <label for="sttSel">Como entender sua voz</label>
+          <select id="sttSel">
+            <option value="auto">Automático</option>
+            <option value="offline">Sempre no celular (privado)</option>
+            <option value="online">Só pelo Google (precisa de internet)</option>
+          </select>
+        </div>
+        <div class="row"><label class="check"><input type="checkbox" id="deepSel"> Ler as páginas encontradas na pesquisa</label></div>
+        <div class="row"><label class="check"><input type="checkbox" id="freeSel"> Liberar memória quando sair do app</label></div>
+        <div class="row">
+          <label for="fcKey">Chave do Firecrawl (opcional)</label>
+          <input type="password" id="fcKey" placeholder="Pode deixar vazio" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="row">
+          <label for="jinaKey">Chave do Jina Reader (opcional)</label>
+          <input type="password" id="jinaKey" placeholder="Pode deixar vazio" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="btns" style="margin-bottom:8px">
+          <button id="sttDownload">BAIXAR VOZ OFFLINE</button>
+          <button id="testSearch">TESTAR TUDO</button>
+        </div>
+        <div class="note" id="sttNote"></div>
+        <div id="diag"></div>
+        <div class="btns" style="margin-top:10px"><button class="danger" id="deleteModel">APAGAR CÉREBRO DO CELULAR</button></div>
+      </details>
+
+      <div class="btns" style="margin-top:14px"><button class="primary" id="closeSettings">PRONTO</button></div>
+    </div>
+  </div>
+
+<script type="module">
+  'use strict';
+  const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js';
+  const $ = s => document.querySelector(s);
+  const log = $('#log'), live = $('#live');
+
+  // ================= Configurações salvas neste aparelho =================
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  const settings = Object.assign(
+    { voiceName: '', pitch: 0.8, rate: 1.05, silence: 1.6, model: 'padrao', city: '', fcKey: '', jinaKey: '', deep: true, freeMem: true, sttMode: 'auto' },
+    (() => { try { return JSON.parse(store.get('jarvis-local-settings', '{}')); } catch (e) { return {}; } })()
+  );
+  const saveSettings = () => store.set('jarvis-local-settings', JSON.stringify(settings));
+
+  // ================= Cérebros (rodam no aparelho) =================
+  // Qwen3.5 é a geração mais nova e mais inteligente; Qwen3 fica de reserva se o celular não rodar a nova.
+  const MODELS = {
+    leve:   { label: 'Leve · Qwen3.5 0,8B · 420 MB', tries: [['Qwen3.5-0.8B', 424], ['Qwen3-0.6B', 350]] },
+    padrao: { label: 'Padrão · Qwen3.5 2B · 1,1 GB', tries: [['Qwen3.5-2B', 1059], ['Qwen3-1.7B', 968]] },
+    forte:  { label: 'Forte · Qwen3.5 4B · 2,4 GB',  tries: [['Qwen3.5-4B', 2367], ['Qwen3-4B', 2300]] }
+  };
+  if (!MODELS[settings.model]) settings.model = 'padrao';
+  function fillModelSelect(sel) {
+    sel.innerHTML = '';
+    Object.entries(MODELS).forEach(([k, m]) => { const o = document.createElement('option'); o.value = k; o.textContent = m.label; sel.appendChild(o); });
+    sel.value = settings.model;
+  }
+
+  // ================= Estado =================
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  let active = false, mode = 'voice', phase = 'off';
+  let rec = null, heardFinal = '', heardInterim = '', silenceTimer = null, emptyRestarts = 0, micDenied = false;
+  let wakeLock = null, history = [], turnId = 0;
+  let webllm = null, engine = null, loadingPromise = null, gpuInfo = null, loadedName = '', warmup = null;
+  // Janela de contexto de 2048 tokens: metade da memória reservada para a conversa, e ainda sobra espaço
+  // (o maior pedido do Jarvis fica em torno de 1.400 tokens).
+  const CHAT_OPTS = { context_window_size: 2048 };
+
+  const LABELS = {
+    off: ['Toque para iniciar', 'Em espera'], listening: ['Ouvindo…', 'Ouvindo'], thinking: ['Pensando…', 'Pensando'],
+    searching: ['Pesquisando…', 'Pesquisando'], speaking: ['Falando…', 'Falando'], tap: ['Toque para falar', 'Aguardando'],
+    typing: ['Digite abaixo', 'Modo texto'], loading: ['Carregando cérebro', 'Carregando']
+  };
+  function setPhase(p) {
+    phase = p;
+    document.body.dataset.phase = p;
+    document.body.classList.toggle('active', active);
+    $('#coreLabel').textContent = LABELS[p][0];
+    $('#statusText').textContent = LABELS[p][1];
+  }
+  const hint = t => { $('#hint').textContent = t || ''; };
+  function showLive() { const t = (heardFinal + ' ' + heardInterim).trim(); live.textContent = t ? '“' + t + '”' : ''; }
+  function addMsg(who, text) {
+    const e = $('#empty'); if (e) e.remove();
+    const d = document.createElement('div');
+    d.className = 'msg ' + who;
+    if (who === 'jarvis') {
+      const w = document.createElement('span'); w.className = 'who'; w.textContent = 'JARVIS';
+      const b = document.createElement('span'); b.className = 'body'; b.textContent = text;
+      d.append(w, b);
+    } else d.textContent = text;
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+    return d;
+  }
+  function setJarvisText(el, text) { el.querySelector('.body').textContent = text; log.scrollTop = log.scrollHeight; }
+  function addSources(el, sources) {
+    const seen = new Set(), list = sources.filter(s => s && s.url && !seen.has(s.url) && seen.add(s.url));
+    if (!list.length) return;
+    const box = document.createElement('div'); box.className = 'src';
+    list.slice(0, 5).forEach(s => {
+      const a = document.createElement('a'); a.href = s.url; a.target = '_blank'; a.rel = 'noopener';
+      let host = s.url; try { host = new URL(s.url).hostname.replace(/^www\./, ''); } catch (e) {}
+      a.textContent = host; a.title = s.title || s.url; box.appendChild(a);
+    });
+    el.appendChild(box); log.scrollTop = log.scrollHeight;
+  }
+  function showLoader(on, text, frac) {
+    $('#loadBox').classList.toggle('show', !!on);
+    if (text) $('#loadText').textContent = text;
+    if (typeof frac === 'number') $('#loadBar').style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + '%';
+  }
+  async function keepAwake(on) {
+    try {
+      if (on && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+      else if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+    } catch (e) { wakeLock = null; }
+  }
+
+  // ================= INTERNET: com ou sem =================
+  let online = navigator.onLine;
+  function updateNet() {
+    online = navigator.onLine;
+    const c = $('#netChip'); c.textContent = online ? 'ONLINE' : 'OFFLINE'; c.classList.toggle('off', !online);
+  }
+  window.addEventListener('online', updateNet);
+  window.addEventListener('offline', updateNet);
+  // ================= VOZ SEM INTERNET (Whisper no celular) =================
+  const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js';
+  const STT_WORKER_CODE = `
+import { pipeline, env } from '${TRANSFORMERS_URL}';
+env.allowLocalModels = false; env.useBrowserCache = true; env.backends.onnx.wasm.numThreads = 1;
+let asr = null, loading = null;
+function load(onProgress) {
+  if (asr) return Promise.resolve(asr);
+  if (!loading) {
+    const files = {};
+    loading = pipeline('automatic-speech-recognition', 'onnx-community/whisper-base', {
+      device: 'wasm', dtype: { encoder_model: 'q8', decoder_model_merged: 'q8' },
+      progress_callback: p => {
+        if (p.status === 'progress' && p.file && p.total) {
+          files[p.file] = [p.loaded || 0, p.total];
+          let a = 0, b = 0; Object.values(files).forEach(([l, t]) => { a += l; b += t; });
+          onProgress && onProgress(b ? a / b : 0, Math.round(b / 1048576));
+        }
+      }
+    }).then(p => { asr = p; return p; }).catch(e => { loading = null; throw e; });
+  }
+  return loading;
+}
+const JUNK = /^(legendas? (pela|por)|obrigad[oa] por assistir|inscreva-se|amara\\.org|\\[.*\\]|\\(.*\\)|\\.+|tchau\\.?)$/i;
+self.onmessage = async e => {
+  const { id, type, audio } = e.data || {};
+  try {
+    if (type === 'load') { await load((frac, totalMB) => self.postMessage({ id, type: 'progress', frac, totalMB })); self.postMessage({ id, type: 'ready' }); }
+    else if (type === 'transcribe') {
+      const a = await load();
+      const out = await a(audio, { language: 'portuguese', task: 'transcribe' });
+      let text = String((out && out.text) || '').trim();
+      if (JUNK.test(text)) text = '';
+      self.postMessage({ id, type: 'result', text });
+    }
+  } catch (err) { self.postMessage({ id, type: 'error', message: String((err && err.message) || err) }); }
+};`;
+  let stt = null, sttReady = false, sttSeq = 0;
+  const sttPending = new Map();
+  function sttCall(type, payload, onProgress) {
+    if (window.__JARVIS_TEST_STT) return window.__JARVIS_TEST_STT(type, payload);
+    if (!stt) {
+      stt = new Worker(URL.createObjectURL(new Blob([STT_WORKER_CODE], { type: 'text/javascript' })), { type: 'module' });
+      stt.onmessage = e => {
+        const m = e.data, h = sttPending.get(m.id); if (!h) return;
+        if (m.type === 'progress') { h.onProgress && h.onProgress(m.frac, m.totalMB); return; }
+        sttPending.delete(m.id);
+        if (m.type === 'error') h.reject(new Error(m.message)); else h.resolve(m);
+      };
+      stt.onerror = e => { sttPending.forEach(h => h.reject(new Error('voz offline indisponível'))); sttPending.clear(); stt = null; };
+    }
+    const id = ++sttSeq;
+    return new Promise((resolve, reject) => {
+      sttPending.set(id, { resolve, reject, onProgress });
+      stt.postMessage({ id, type, audio: payload }, payload ? [payload.buffer] : []);
+    });
+  }
+  async function sttIsDownloaded() {
+    if (window.__JARVIS_TEST_STT) return !!window.__JARVIS_TEST_STT_READY;
+    try {
+      const c = await caches.open('transformers-cache');
+      const keys = (await c.keys()).map(r => r.url);
+      return keys.some(u => u.includes('whisper-base') && u.includes('encoder_model')) && keys.some(u => u.includes('whisper-base') && u.includes('decoder_model_merged'));
+    } catch (e) { return false; }
+  }
+  async function ensureStt(onProgress) {
+    if (sttReady) return;
+    await sttCall('load', null, onProgress);
+    sttReady = true;
+  }
+  const useLocalStt = () => settings.sttMode === 'offline' || (settings.sttMode === 'auto' && !online) || !SR;
+
+  // Grava sua fala e para sozinho quando você fica em silêncio
+  let recorder = null;
+  async function recordUtterance() {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+    let ctx;
+    try { ctx = new AudioContext({ sampleRate: 16000 }); } catch (e) { ctx = new AudioContext(); }
+    const src = ctx.createMediaStreamSource(stream);
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    const rate = ctx.sampleRate;
+    const chunks = [], pre = [];
+    let started = false, silentMs = 0, totalMs = 0, speechMs = 0, floor = 0.01;
+    const calib = [];
+    return new Promise(resolve => {
+      let done = false;
+      const finish = reason => {
+        if (done) return; done = true; recorder = null;
+        try { proc.disconnect(); src.disconnect(); } catch (e) {}
+        stream.getTracks().forEach(t => t.stop());
+        ctx.close().catch(() => {});
+        const len = chunks.reduce((a, c) => a + c.length, 0);
+        let audio = new Float32Array(len); let o = 0; chunks.forEach(c => { audio.set(c, o); o += c.length; });
+        if (rate !== 16000 && len) {               // reamostra para 16 kHz se o celular não aceitou direto
+          const ratio = rate / 16000, out = new Float32Array(Math.floor(len / ratio));
+          for (let i = 0; i < out.length; i++) out[i] = audio[Math.floor(i * ratio)];
+          audio = out;
+        }
+        resolve({ reason, audio, speechMs });
+      };
+      recorder = { cancel: () => finish('cancel') };
+      proc.onaudioprocess = e => {
+        if (done) return;
+        const d = e.inputBuffer.getChannelData(0);
+        const ms = d.length / rate * 1000; totalMs += ms;
+        let sum = 0; for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
+        const rms = Math.sqrt(sum / d.length);
+        if (calib.length < 3) { calib.push(rms); floor = Math.max(0.003, calib.reduce((a, b) => a + b, 0) / calib.length); return; }
+        const threshold = Math.max(0.012, floor * 2.6);
+        const copy = new Float32Array(d);
+        if (rms > threshold) { if (!started) { started = true; chunks.push(...pre); } silentMs = 0; speechMs += ms; }
+        else if (started) silentMs += ms;
+        if (started) chunks.push(copy); else { pre.push(copy); if (pre.length > 2) pre.shift(); floor = floor * 0.95 + rms * 0.05; }
+        if (started && silentMs > settings.silence * 1000) finish(speechMs > 250 ? 'ok' : 'nospeech');
+        else if (!started && totalMs > 9000) finish('nospeech');
+        else if (totalMs > 25000) finish('ok');
+      };
+      src.connect(proc); proc.connect(ctx.destination);
+    });
+  }
+
+  async function listenLocal() {
+    if (!(sttReady || await sttIsDownloaded())) {
+      setPhase('typing');
+      hint(online ? 'Para falar sem internet, baixe a voz offline nas configurações.' : 'Sem internet e sem a voz offline baixada. Digite sua pergunta abaixo.');
+      return;
+    }
+    setPhase('listening'); hint('Pode falar (modo offline). Toque no núcleo para encerrar.');
+    let r;
+    try { r = await recordUtterance(); }
+    catch (e) { micDenied = /denied|not allowed|permission/i.test(String(e && (e.name + e.message))); setPhase('typing'); hint('Não consegui usar o microfone. Libere no cadeado ao lado do endereço.'); return; }
+    if (!active || phase !== 'listening') return;
+    if (r.reason === 'cancel') return;
+    if (r.reason === 'nospeech') {
+      if (++emptyRestarts > 10) { setPhase('tap'); hint('Fiquei um tempo sem ouvir nada. Toque no núcleo para falar.'); return; }
+      return listenLocal();
+    }
+    setPhase('thinking'); hint('Entendendo o que você disse…');
+    try {
+      if (!sttReady) await ensureStt();
+      const res = await sttCall('transcribe', r.audio);
+      if (!active) return;
+      const text = (res.text || '').trim();
+      if (!text) { setPhase('listening'); return listenLocal(); }
+      live.textContent = '“' + text + '”';
+      finishTurn(text);
+    } catch (e) {
+      if (!active) return;
+      setPhase('typing'); hint('A voz offline falhou (' + e.message + '). Digite sua pergunta.');
+    }
+  }
+
+  // ================= CÉREBRO LOCAL (WebLLM + WebGPU) =================
+  async function detectGPU() {
+    if (gpuInfo) return gpuInfo;
+    if (window.__JARVIS_TEST_ENGINE) return (gpuInfo = { ok: true, f16: true });
+    if (!navigator.gpu) return (gpuInfo = { ok: false, why: 'Este navegador não tem WebGPU. Use o Chrome atualizado no Android 12 ou mais novo.' });
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) return (gpuInfo = { ok: false, why: 'A placa de vídeo do celular não ficou disponível para o navegador. Atualize o Chrome e tente de novo.' });
+      return (gpuInfo = { ok: true, f16: adapter.features.has('shader-f16') });
+    } catch (e) { return (gpuInfo = { ok: false, why: 'Não consegui acessar a placa de vídeo do celular.' }); }
+  }
+  const idFor = base => base + (gpuInfo && gpuInfo.f16 ? '-q4f16_1-MLC' : '-q4f32_1-MLC');
+  async function getWebLLM() { if (!webllm) webllm = await import(WEBLLM_URL); return webllm; }
+
+  // Qual versão deste tamanho já está guardada no celular (se alguma estiver)
+  async function cachedChoice(key) {
+    if (window.__JARVIS_TEST_ENGINE) return MODELS[key || settings.model].tries[0];
+    const g = await detectGPU(); if (!g.ok) return null;
+    try {
+      const w = await getWebLLM();
+      for (const t of MODELS[key || settings.model].tries) if (await w.hasModelInCache(idFor(t[0]))) return t;
+    } catch (e) {}
+    return null;
+  }
+  const isCached = async () => !!(await cachedChoice());
+
+  const isFatal = e => /memory|oom|device.?lost|quota|storage|network|fetch|failed to fetch|shader-f16/i.test(String(e && (e.message || e)));
+
+  function loadEngine() {
+    if (engine) return Promise.resolve(engine);
+    if (loadingPromise) return loadingPromise;
+    loadingPromise = (async () => {
+      if (window.__JARVIS_TEST_ENGINE) { engine = window.__JARVIS_TEST_ENGINE; loadedName = 'teste'; return engine; }
+      const g = await detectGPU();
+      if (!g.ok) throw Object.assign(new Error(g.why), { friendly: g.why });
+      try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+      showLoader(true, 'Preparando o cérebro…', 0);
+      const w = await getWebLLM();
+      const cached = await cachedChoice();
+      const order = cached ? [cached, ...MODELS[settings.model].tries.filter(t => t !== cached)] : MODELS[settings.model].tries;
+      let lastErr = null;
+      for (const [base, mb] of order) {
+        const id = idFor(base);
+        const inCache = await w.hasModelInCache(id).catch(() => false);
+        const progress = r => {
+          const p = typeof r.progress === 'number' ? r.progress : 0;
+          showLoader(true, inCache ? 'Carregando o cérebro: ' + Math.round(p * 100) + '%'
+            : 'Baixando o cérebro: ' + Math.round(p * 100) + '% (' + Math.round(p * mb) + ' de ' + mb + ' MB)', p);
+        };
+        try {
+          let worker = null;
+          try {
+            const code = `import { WebWorkerMLCEngineHandler } from "${WEBLLM_URL}";
+const handler = new WebWorkerMLCEngineHandler();
+self.onmessage = (msg) => handler.onmessage(msg);`;
+            worker = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })), { type: 'module' });
+          } catch (e) { worker = null; }
+          engine = worker
+            ? await w.CreateWebWorkerMLCEngine(worker, id, { initProgressCallback: progress }, CHAT_OPTS)
+            : await w.CreateMLCEngine(id, { initProgressCallback: progress }, CHAT_OPTS);
+          loadedName = base;
+          showLoader(false);
+          // Aquece o cérebro em segundo plano: a primeira resposta de verdade sai mais rápida
+          warmup = engine.chat.completions.create({ messages: [{ role: 'user', content: 'oi' }], max_tokens: 1, extra_body: { enable_thinking: false } })
+            .catch(() => {}).finally(() => { warmup = null; });
+          return engine;
+        } catch (e) {
+          lastErr = e; engine = null;
+          if (isFatal(e)) break;          // falta de memória/espaço/internet: não adianta tentar outra versão
+        }
+      }
+      throw lastErr || new Error('falha ao carregar');
+    })();
+    return loadingPromise.catch(e => { loadingPromise = null; engine = null; showLoader(false); throw e; });
+  }
+
+  function engineErrorText(e) {
+    if (e && e.friendly) return e.friendly;
+    const m = String(e && (e.message || e) || '').toLowerCase();
+    if (m.includes('shader-f16')) return 'Seu celular não suporta essa versão do cérebro. Tente o tamanho Leve.';
+    if (/memory|oom|device.?lost|buffer/.test(m)) return 'Faltou memória no celular para esse cérebro. Feche outros apps ou escolha um tamanho menor nas configurações.';
+    if (/quota|storage/.test(m)) return 'Falta espaço no celular para guardar o cérebro. Libere espaço e tente de novo.';
+    if (/fetch|network/.test(m)) return 'A internet caiu durante o download. Tente de novo: ele continua de onde parou.';
+    return 'Não consegui ligar o cérebro (' + (e && e.message || e) + ').';
+  }
+
+  const stripThink = t => String(t || '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+
+  async function generate(messages, opts = {}) {
+    if (warmup) await warmup;
+    const req = {
+      messages,
+      temperature: opts.temperature ?? 0.7,
+      top_p: opts.temperature === 0 ? 1 : 0.8,
+      presence_penalty: opts.temperature === 0 ? 0 : 0.6,
+      max_tokens: opts.max || 220,
+      extra_body: { enable_thinking: false }
+    };
+    if (opts.onText) {
+      req.stream = true;
+      const chunks = await engine.chat.completions.create(req);
+      let txt = '';
+      for await (const ch of chunks) {
+        if (opts.turn !== undefined && opts.turn !== turnId) break;
+        txt += (ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content) || '';
+        opts.onText(stripThink(txt));
+      }
+      return stripThink(txt);
+    }
+    const r = await engine.chat.completions.create(req);
+    return stripThink(r.choices[0].message.content);
+  }
+
+  // ================= DECIDIR o que fazer =================
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const SMALLTALK_RE = /^(oi|ola|ola jarvis|oi jarvis|e ai|eai|bom dia|boa tarde|boa noite|tudo bem|tudo bom|como vai|obrigad[oa]|valeu|beleza|blz|show|legal|ok|certo|entendi|perfeito|muito bem|parabens)\b/;
+  const TIME_RE = /\b(que horas|que dia e hoje|qual a data|data de hoje|dia da semana)\b/;
+  const WEATHER_RE = /\b(clima|previsao( do tempo)?|temperatura|vai chover|chover|chovendo|chuva|calor|frio|quantos graus|o tempo (hoje|amanha|agora|la fora))\b/;
+  const CURRENCY_RE = /\b(cotacao|cambio|quanto (esta|ta|custa|vale) o (dolar|euro|peso|iene|yuan|franco|libra)|(dolar|euro|libra|peso argentino|iene|yuan|franco suico)( hoje| agora)?$)/;
+  const SEARCH_RE = /\b(hoje|ontem|agora|atual|atualmente|ultim[oa]s?|recente|noticias?|preco|placar|resultado|quem ganhou|jogo|campeonato|eleicao|lancamento|quem e|quem foi|quando|onde fica|quantos|qual e a capital|como funciona|o que e|o que foi|20[2-3]\d)\b/;
+  const URL_RE = /\b((?:https?:\/\/)?(?:[\w-]+\.)+(?:com|br|org|net|gov|edu|io|info|me|tv)(?:\.br)?(?:\/[^\s]*)?)/i;
+
+  function extractCity(q) {
+    const m = q.match(/\b(?:em|no|na|de|para)\s+([A-ZÁÂÃÉÊÍÓÔÕÚÇ][\wÀ-ú'-]+(?:\s+(?:d[eoa]s?\s+)?[A-ZÁÂÃÉÊÍÓÔÕÚÇ][\wÀ-ú'-]+)*)/);
+    return m ? m[1] : '';
+  }
+
+  // Contas: entende "quanto é 12 vezes 7", "15% de 300", "2 elevado a 10"
+  function tryMath(q) {
+    let s = norm(q).replace(/^(jarvis[, ]*)?(quanto (e|da|fica)|calcule|calcula|faz a conta( de)?|qual o resultado de)\s*/, '').replace(/[?!]$/, '').trim();
+    let m = s.match(/^(\d+(?:[.,]\d+)?)\s*(%|por cento)\s*de\s*(\d+(?:[.,]\d+)?)$/);
+    if (m) { const a = +m[1].replace(',', '.'), b = +m[3].replace(',', '.'); return { expr: m[1] + '% de ' + m[3], value: a * b / 100 }; }
+    s = s.replace(/\bmais\b/g, '+').replace(/\bmenos\b/g, '-').replace(/\b(vezes|multiplicado por|x)\b/g, '*').replace(/×/g, '*')
+         .replace(/\b(dividido por|sobre)\b/g, '/').replace(/÷/g, '/').replace(/\belevado a\b/g, '^').replace(/\bao quadrado\b/g, '^2')
+         .replace(/\braiz quadrada de\s*(\d+(?:[.,]\d+)?)/g, 'sqrt($1)').replace(/(\d),(\d)/g, '$1.$2');
+    if (!/^[\d\s+\-*/^().sqrt]+$/.test(s) || !/\d/.test(s) || !/[+\-*/^]|sqrt/.test(s)) return null;
+    try {
+      const js = s.replace(/\^/g, '**').replace(/sqrt/g, 'Math.sqrt');
+      const v = Function('"use strict";return (' + js + ')')();
+      if (typeof v !== 'number' || !isFinite(v)) return null;
+      return { expr: s, value: v };
+    } catch (e) { return null; }
+  }
+  const fmtNum = v => Number(v.toFixed(6)).toLocaleString('pt-BR', { maximumFractionDigits: 6 });
+
+  const CREATIVE_RE = /\b(piada|poema|poesia|historia|historinha|conto|invente|inventa|crie|cria|escreva|escreve|imagine|rima|charada|adivinha|trava-lingua)\b/;
+  const OPINION_RE = /\b(o que voce acha|qual (e )?(a )?sua opiniao|voce gosta|voce prefere|me (de|da) um conselho|me aconselh|o que voce faria)\b/;
+  const QUESTION_RE = /\?\s*$|^(jarvis[, ]*)?(quem|qual|quais|quando|onde|como|por que|porque|quanto|quantos|quantas|o que|que|existe|e verdade|sera que|me (diga|fale|conta|conte|explique|explica)|sabe)\b|\b(pesquis|procur|busc)/;
+  const SELF_RE = /^(quem e voce|quem (e que )?te (criou|fez)|qual (e )?(o )?seu nome|o que voce (e|faz|pode fazer|consegue fazer)|como voce (esta|funciona)|voce (e|esta|tem|gosta) )/;
+  const FOLLOW_RE = /^(e |e,|e o |e a |mais sobre|fala mais|conta mais|continua|e depois)/;
+  const PRONOUN_RE = /\b(ele|ela|eles|elas|dele|dela|deles|delas|nele|nela|isso|disso|nisso|esse|essa|esses|essas|la|ali)\b/;
+  const CURRENCY_NAMES = { dolar: 'USD', euro: 'EUR', libra: 'GBP', 'peso argentino': 'ARS', peso: 'ARS', iene: 'JPY', yuan: 'CNY', 'franco suico': 'CHF', franco: 'CHF', 'dolar canadense': 'CAD', 'dolar australiano': 'AUD' };
+  function currencyFrom(q, fallback) {
+    const n = norm(q);
+    for (const k of Object.keys(CURRENCY_NAMES).sort((a, b) => b.length - a.length)) if (n.includes(k)) return CURRENCY_NAMES[k];
+    return fallback || 'USD';
+  }
+  function cleanQuery(q) {
+    return q.replace(/^\s*(jarvis[,!.]?\s*)/i, '')
+      .replace(/(^|\s)(por favor|me diga|me fala|me fale|me conta|me conte|me explica|me explique|voc[eê] sabe( me dizer)?|pesquise|pesquisa|procure|procura|busque|busca|na internet|no google)(?=\s|$|[,?!.])/gi, ' ')
+      .replace(/^\s*(sobre|a respeito de)\s+/i, '')
+      .replace(/^\s*e\s+/i, '').replace(/[?!.]+\s*$/, '').replace(/\s+/g, ' ').trim();
+  }
+  let lastPlan = null;
+
+  // Decide o que fazer sem gastar o cérebro: regras rápidas, inclusive para perguntas de continuação
+  function route(q) {
+    const n = norm(q).replace(/^jarvis[,!. ]*/, '');
+    const words = n.split(/\s+/).filter(Boolean).length;
+    const math = tryMath(q);
+    if (math) return { acao: 'conta', math };
+    if (words <= 6 && SMALLTALK_RE.test(n)) return { acao: 'responder' };
+    if (TIME_RE.test(n)) return { acao: 'responder' };
+
+    const follow = lastPlan && words <= 8 && (FOLLOW_RE.test(n) || PRONOUN_RE.test(n));
+    if (follow && lastPlan.acao === 'clima' && !CURRENCY_RE.test(n)) return { acao: 'clima', cidade: extractCity(q) || lastPlan.cidade };
+    if (follow && lastPlan.acao === 'cotacao') return { acao: 'cotacao', moeda: currencyFrom(q, lastPlan.moeda) };
+
+    if (WEATHER_RE.test(n)) return { acao: 'clima', cidade: extractCity(q) };
+    if (CURRENCY_RE.test(n) && !/bitcoin|cripto|acao|acoes|bolsa/.test(n)) return { acao: 'cotacao', moeda: currencyFrom(q) };
+    const url = q.match(URL_RE);
+    if (url && /\b(le|leia|ler|abre|abrir|abra|resum|site|pagina|link)/.test(n)) return { acao: 'ler', url: url[1] };
+    if (CREATIVE_RE.test(n) || OPINION_RE.test(n) || SELF_RE.test(n)) return { acao: 'responder' };
+
+    if (follow && lastPlan.acao === 'pesquisar') return { acao: 'pesquisar', consulta: (lastPlan.consulta + ' ' + cleanQuery(q)).slice(0, 120) };
+    if (QUESTION_RE.test(n) || SEARCH_RE.test(n)) return { acao: 'pesquisar', consulta: cleanQuery(q) || q };
+    return { acao: 'responder' };
+  }
+
+  // ================= FERRAMENTAS (grátis, sem chave) =================
+  const enc = encodeURIComponent;
+  function withTimeout(p, ms) { return Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('tempo esgotado')), ms))]); }
+  async function getJSON(url, opts, ms = 9000) {
+    const r = await withTimeout(fetch(url, opts), ms);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+  const cache = new Map();
+  async function cached(key, fn, ttl = 10 * 60 * 1000) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.t < ttl) return hit.v;
+    const v = await fn(); cache.set(key, { t: Date.now(), v }); return v;
+  }
+
+  // Busca na web inteira (Firecrawl, aceita chamadas do navegador)
+  function searchWeb(q) {
+    return cached('web:' + q, async () => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (settings.fcKey) headers.Authorization = 'Bearer ' + settings.fcKey;
+      const j = await getJSON('https://api.firecrawl.dev/v2/search', { method: 'POST', headers, body: JSON.stringify({ query: q, limit: 5 }) }, 12000);
+      const d = j && j.data;
+      const web = Array.isArray(d) ? d : ((d && d.web) || []);
+      const news = (d && Array.isArray(d.news)) ? d.news : [];
+      return news.concat(web).filter(x => x && x.url).slice(0, 6).map(x => ({
+        title: x.title || '', url: x.url, text: (x.description || x.snippet || '').slice(0, 400).trim()
+      }));
+    });
+  }
+
+  function searchWikipedia(q) {
+    return cached('wiki:' + q, async () => {
+      const s = await getJSON('https://pt.wikipedia.org/w/api.php?action=query&list=search&srlimit=2&format=json&origin=*&srsearch=' + enc(q));
+      const ids = ((s.query && s.query.search) || []).map(x => x.pageid);
+      if (!ids.length) return [];
+      const e = await getJSON('https://pt.wikipedia.org/w/api.php?action=query&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exchars=900&format=json&origin=*&pageids=' + ids.join('|'));
+      const pages = (e.query && e.query.pages) || {};
+      return ids.map(id => pages[id]).filter(Boolean).map(p => ({
+        title: p.title, url: p.fullurl || ('https://pt.wikipedia.org/?curid=' + p.pageid), text: (p.extract || '').trim()
+      })).filter(x => x.text);
+    });
+  }
+
+  // Lê o texto de qualquer página (Jina Reader; Firecrawl de reserva)
+  function cleanPage(md) {
+    return md.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+             .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+             .replace(/^(Title|URL Source|Published Time|Markdown Content):.*$/gm, '')
+             .split('\n').map(l => l.replace(/^[#>*\-\s|]+/, '').trim())
+             .filter(l => l.length > 50 && !/cookie|newsletter|inscreva|assine|publicidade|todos os direitos/i.test(l))
+             .join('\n');
+  }
+  function readPage(url) {
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    return cached('read:' + url, async () => {
+      try {
+        const opts = settings.jinaKey ? { headers: { Authorization: 'Bearer ' + settings.jinaKey } } : undefined;
+        const r = await withTimeout(fetch('https://r.jina.ai/' + url, opts), 12000);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const t = cleanPage(await r.text());
+        if (t.length < 200) throw new Error('página vazia');
+        return t;
+      } catch (e) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (settings.fcKey) headers.Authorization = 'Bearer ' + settings.fcKey;
+        const j = await getJSON('https://api.firecrawl.dev/v2/scrape', { method: 'POST', headers, body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true }) }, 15000);
+        const t = cleanPage((j && j.data && j.data.markdown) || '');
+        if (t.length < 200) throw new Error('página vazia');
+        return t;
+      }
+    }, 30 * 60 * 1000);
+  }
+  // Pega só os trechos da página que tratam da pergunta
+  const STOP = new Set('para com como qual quais quem onde quando porque sobre isso essa esse esta este tem foi ser sao das dos uma umas uns pela pelo mais menos muito hoje agora jarvis voce senhor'.split(' '));
+  function keywords(q) { return [...new Set(norm(q).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !STOP.has(w)))]; }
+  function relevant(text, q, max) {
+    const kw = keywords(q);
+    const sents = text.replace(/\n+/g, ' ').match(/[^.!?]+[.!?]+["”)]?|[^.!?]+$/g) || [text];
+    const scored = sents.map((t, i) => {
+      t = t.trim(); const n = norm(t); let sc = 0;
+      kw.forEach(k => { if (n.includes(k)) sc += 1; });
+      if (/\d/.test(t)) sc += 0.4;
+      if (t.length < 40 || t.length > 400) sc -= 0.5;
+      return { t, i, sc: sc - i * 0.001 };
+    }).filter(x => x.sc >= 1).sort((a, b) => b.sc - a.sc);
+    const pick = []; let len = 0;
+    for (const x of scored) { if (len + x.t.length > max) continue; pick.push(x); len += x.t.length + 1; if (len > max * 0.92) break; }
+    if (!pick.length) return text.replace(/\s+/g, ' ').slice(0, max);
+    return pick.sort((a, b) => a.i - b.i).map(x => x.t).join(' ');
+  }
+
+  const WMO = {
+    0: 'céu limpo', 1: 'predominantemente limpo', 2: 'parcialmente nublado', 3: 'nublado', 45: 'neblina', 48: 'neblina com geada',
+    51: 'garoa fraca', 53: 'garoa', 55: 'garoa forte', 56: 'garoa congelante', 57: 'garoa congelante forte', 61: 'chuva fraca', 63: 'chuva', 65: 'chuva forte',
+    66: 'chuva congelante', 67: 'chuva congelante forte', 71: 'neve fraca', 73: 'neve', 75: 'neve forte', 77: 'grãos de neve',
+    80: 'pancadas de chuva fracas', 81: 'pancadas de chuva', 82: 'pancadas de chuva fortes', 85: 'pancadas de neve', 86: 'pancadas de neve fortes',
+    95: 'trovoadas', 96: 'trovoadas com granizo', 99: 'trovoadas com granizo forte'
+  };
+  async function getWeather(city) {
+    const name = (city || settings.city || '').trim();
+    if (!name) return { text: 'O usuário não disse a cidade e não há cidade salva nas configurações. Peça a cidade.', sources: [] };
+    const g = await cached('geo:' + norm(name), () => getJSON('https://geocoding-api.open-meteo.com/v1/search?count=1&language=pt&format=json&name=' + enc(name)), 864e5);
+    const p = g.results && g.results[0];
+    if (!p) return { text: 'Não encontrei a cidade "' + name + '".', sources: [] };
+    const f = await getJSON('https://api.open-meteo.com/v1/forecast?latitude=' + p.latitude + '&longitude=' + p.longitude +
+      '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=3');
+    const c = f.current || {}, d = f.daily || {}, r = Math.round;
+    const days = ['Hoje', 'Amanhã', 'Depois de amanhã'];
+    let txt = 'Clima em ' + p.name + (p.admin1 ? ', ' + p.admin1 : '') + '. Agora: ' + r(c.temperature_2m) + ' graus, sensação de ' +
+      r(c.apparent_temperature) + ' graus, ' + (WMO[c.weather_code] || 'tempo variável') + ', umidade de ' + r(c.relative_humidity_2m) +
+      ' por cento, vento de ' + r(c.wind_speed_10m) + ' quilômetros por hora.';
+    (d.time || []).forEach((_, i) => {
+      txt += ' ' + days[i] + ': mínima de ' + r(d.temperature_2m_min[i]) + ', máxima de ' + r(d.temperature_2m_max[i]) + ' graus, ' +
+        (WMO[d.weather_code[i]] || 'tempo variável') + ', chance de chuva de ' + r(d.precipitation_probability_max[i] || 0) + ' por cento.';
+    });
+    return { text: txt, sources: [{ url: 'https://open-meteo.com/', title: 'Open-Meteo' }] };
+  }
+
+  const CUR_PT = { USD: 'dólar americano', EUR: 'euro', GBP: 'libra esterlina', ARS: 'peso argentino', JPY: 'iene', CNY: 'yuan', CHF: 'franco suíço', CAD: 'dólar canadense', AUD: 'dólar australiano' };
+  async function getCurrency(code) {
+    code = (code || 'USD').toUpperCase();
+    const j = await cached('fx:' + code, () => getJSON('https://open.er-api.com/v6/latest/' + code), 30 * 60 * 1000);
+    const brl = j && j.rates && j.rates.BRL;
+    if (!brl) throw new Error('sem cotação');
+    const when = j.time_last_update_unix ? new Date(j.time_last_update_unix * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'hoje';
+    return {
+      text: 'Cotação: 1 ' + (CUR_PT[code] || code) + ' = ' + brl.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' reais (atualizada em ' + when + ').',
+      sources: [{ url: 'https://www.exchangerate-api.com', title: 'ExchangeRate-API' }]
+    };
+  }
+
+  // Pesquisa completa: busca na web + Wikipédia, e (se ligado) lê as melhores páginas
+  async function runSearch(q, plan, onStep) {
+    const query = plan.consulta || q;
+    const [webR, wikiR] = await Promise.allSettled([searchWeb(query), searchWikipedia(query)]);
+    const web = webR.status === 'fulfilled' ? webR.value : [], wiki = wikiR.status === 'fulfilled' ? wikiR.value : [];
+    const seen = new Set();
+    const items = web.concat(wiki).filter(x => !seen.has(x.url) && seen.add(x.url));
+    if (!items.length) return { text: '', sources: [], failed: true };
+    const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+
+    let page = null;
+    if (settings.deep) {
+      const best = web.find(x => !/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|facebook\.com|x\.com|twitter\.com|\.pdf$/i.test(x.url));
+      if (best) {
+        onStep && onStep('Lendo ' + host(best.url) + '…');
+        try { page = { ...best, body: relevant(await readPage(best.url), q + ' ' + query, 1300) }; } catch (e) { page = null; }
+      }
+    }
+    // Material curto e denso: é o que mais pesa no tempo de resposta do celular
+    let budget = 2800; const parts = [], sources = [];
+    const add = (it, body) => {
+      if (budget < 120 || !body) return;
+      const line = (it.title + ' (' + host(it.url) + '): ' + body).slice(0, budget);
+      parts.push('- ' + line); budget -= line.length; sources.push({ url: it.url, title: it.title });
+    };
+    if (page) add(page, page.body);
+    items.forEach(it => { if (!page || it.url !== page.url) add(it, relevant(it.text, q + ' ' + query, 450)); });
+    return { text: parts.join('\n'), sources, failed: !parts.length };
+  }
+
+  // ================= RESPONDER =================
+  const SYSTEM = [
+    'Você é JARVIS, assistente pessoal por voz: educado, eficiente, com humor seco e discreto. Chame o usuário de "senhor".',
+    'Responda em português do Brasil, direto, em 1 a 3 frases curtas, salvo se pedirem detalhes. A resposta será falada: sem markdown, listas, emojis ou links.',
+    'Se vier MATERIAL, use só ele para fatos, números e datas, preferindo o mais recente; se ele não tiver a resposta, diga que não encontrou. Sem material, responda com o que você sabe e nunca invente números ou datas.'
+  ].join('\n');
+  const contextLine = () => 'Agora: ' + new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' }) + '.' + (settings.city ? ' Usuário mora em ' + settings.city + '.' : '');
+  const short = (t, n) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t);
+  function buildMessages(q, material, withHistory) {
+    const msgs = [{ role: 'system', content: SYSTEM }];
+    if (withHistory) history.slice(-2).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 200) }); msgs.push({ role: 'assistant', content: short(h.a, 350) }); });
+    msgs.push({ role: 'user', content: contextLine() + (material ? '\n' + material : '') + '\n\nPergunta: ' + q });
+    return msgs;
+  }
+
+  // Fala as frases conforme o cérebro vai escrevendo (resposta começa mais rápido)
+  function makeSpeaker() {
+    const token = ++speakToken;
+    let queue = [], playing = false, closed = false, finished = false, idle = 0, current = null, started = false;
+    let resolveDone; const done = new Promise(r => { resolveDone = r; });
+    const finish = () => { if (finished) return; finished = true; clearInterval(watch); resolveDone(); };
+    const playNext = () => {
+      if (token !== speakToken || !active || !synth) { queue = []; finish(); return; }
+      if (!queue.length) { playing = false; if (closed) finish(); return; }
+      playing = true;
+      const u = new SpeechSynthesisUtterance(queue.shift());
+      const me = {}; current = me;
+      u.lang = 'pt-BR'; const v = chosenVoice(); if (v) u.voice = v;
+      u.pitch = settings.pitch; u.rate = settings.rate; u.volume = 1;
+      u.onend = u.onerror = () => { if (current === me) { current = null; playNext(); } };
+      currentUtter = u;
+      synth.speak(u);
+    };
+    const watch = setInterval(() => {
+      if (finished) return;
+      if (playing && !synth.speaking && !synth.pending) { if (++idle >= 6) { idle = 0; current = null; playNext(); } } else idle = 0;
+    }, 500);
+    return {
+      push(text) {
+        const parts = chunk(cleanForSpeech(text)); if (!parts.length) return;
+        if (!started) { started = true; try { synth && synth.cancel(); } catch (e) {} setPhase('speaking'); }
+        queue.push(...parts); if (!playing) playNext();
+      },
+      close() { closed = true; if (!playing) finish(); return done; }
+    };
+  }
+
+  async function ask(q) {
+    const myTurn = ++turnId;
+    addMsg('user', q);
+    const bubble = addMsg('jarvis', '…');
+    let reply = '', sources = [], speaker = null;
+    try {
+      if (!engine) {
+        setPhase('loading'); hint('Ligando o cérebro…');
+        await loadEngine();
+        if (myTurn !== turnId) { bubble.remove(); return; }
+      }
+      setPhase('thinking'); hint('');
+      const plan = route(q);
+      if (plan.acao !== 'responder' && plan.acao !== 'conta') lastPlan = plan;
+      if (myTurn !== turnId) { bubble.remove(); return; }
+
+      let material = '';
+      if (plan.acao === 'conta') {
+        material = 'MATERIAL (cálculo exato feito pelo sistema): ' + plan.math.expr + ' = ' + fmtNum(plan.math.value) + '.';
+      } else if (plan.acao !== 'responder' && !navigator.onLine) {
+        material = plan.acao === 'clima' || plan.acao === 'cotacao' || plan.acao === 'ler'
+          ? 'MODO SEM INTERNET: não dá para consultar ' + (plan.acao === 'clima' ? 'o clima' : plan.acao === 'cotacao' ? 'a cotação' : 'sites') + ' agora. Diga isso ao usuário em uma frase e, se fizer sentido, ofereça o que você sabe de forma geral.'
+          : 'MODO SEM INTERNET: responda com o seu próprio conhecimento. Se o assunto puder ter mudado recentemente, avise em poucas palavras que está sem internet e que a informação pode estar desatualizada.';
+      } else if (plan.acao !== 'responder') {
+        setPhase('searching');
+        const step = t => { if (myTurn === turnId) setJarvisText(bubble, t); };
+        step(plan.acao === 'clima' ? 'Consultando o clima…' : plan.acao === 'cotacao' ? 'Consultando a cotação…' :
+             plan.acao === 'ler' ? 'Lendo a página…' : 'Pesquisando: ' + plan.consulta + '…');
+        try {
+          let r;
+          if (plan.acao === 'clima') r = await getWeather(plan.cidade);
+          else if (plan.acao === 'cotacao') r = await getCurrency(plan.moeda);
+          else if (plan.acao === 'ler') { const t = await readPage(plan.url); r = { text: '[Página] ' + plan.url + ': ' + relevant(t, q, 2600), sources: [{ url: /^https?:/.test(plan.url) ? plan.url : 'https://' + plan.url }] }; }
+          else r = await runSearch(q, plan, step);
+          sources = r.sources || [];
+          material = r.failed || !r.text
+            ? 'A PESQUISA NÃO TROUXE NADA AGORA: responda com o seu próprio conhecimento e avise em poucas palavras que não conseguiu confirmar na internet.'
+            : 'MATERIAL (consultado agora):\n' + r.text;
+        } catch (e) {
+          material = plan.acao === 'pesquisar'
+            ? 'A PESQUISA FALHOU AGORA (internet instável): responda com o seu próprio conhecimento e avise em poucas palavras que não conseguiu confirmar na internet.'
+            : 'A CONSULTA FALHOU AGORA (' + (e.message || 'erro') + '). Diga isso ao usuário em uma frase.';
+        }
+        if (myTurn !== turnId) { bubble.remove(); return; }
+        setPhase('thinking');
+      }
+
+      speaker = (mode === 'voice' || mode === 'text') && active ? makeSpeaker() : null;
+      let spokenUpTo = 0;
+      const onText = t => {
+          if (myTurn !== turnId) return;
+          setJarvisText(bubble, t || '…');
+          if (!speaker) return;
+          const rest = t.slice(spokenUpTo);
+          let cut = -1, m; const re = /[.!?…;:](\s|$)/g;
+          while ((m = re.exec(rest))) cut = m.index + 1;
+          if (cut >= 25 || (cut > 0 && spokenUpTo > 0)) { speaker.push(rest.slice(0, cut)); spokenUpTo += cut; }
+      };
+      let raw;
+      try { raw = await generate(buildMessages(q, material, true), { max: 180, turn: myTurn, onText }); }
+      catch (e) {
+        if (!/context window|prompt tokens exceed/i.test(String(e && e.message))) throw e;
+        // Pedido grande demais para a janela: tenta de novo enxuto, sem histórico
+        raw = await generate(buildMessages(q, material.slice(0, 1200), false), { max: 180, turn: myTurn, onText });
+      }
+      reply = raw.replace(/\*\*|__|#+ /g, '').trim() || 'Desculpe, senhor, não consegui formular uma resposta.';
+      if (speaker && myTurn === turnId) speaker.push(raw.trim() ? raw.slice(spokenUpTo) : reply);
+    } catch (e) {
+      if (myTurn !== turnId || !active) { bubble.remove(); return; }
+      reply = engineErrorText(e); sources = [];
+      speaker = makeSpeaker(); speaker.push(reply);
+    }
+    if (myTurn !== turnId || !active) return;
+    setJarvisText(bubble, reply);
+    addSources(bubble, sources);
+    history.push({ q, a: reply });
+    if (history.length > 8) history = history.slice(-8);
+    if (speaker) await speaker.close();
+    if (!active || myTurn !== turnId) return;
+    if (mode === 'voice') startListening();
+    else { active = false; setPhase('off'); hint(''); keepAwake(false); }
+  }
+
+  // ================= OUVIR =================
+  function startListening() {
+    heardFinal = ''; heardInterim = ''; showLive(); emptyRestarts = 0;
+    if (!micDenied && useLocalStt()) { listenLocal(); return; }
+    if (!SR || micDenied) {
+      setPhase('typing');
+      hint(micDenied ? 'O microfone foi bloqueado. Libere no cadeado ao lado do endereço.' : 'Este navegador não reconhece voz. Abra no Chrome.');
+      return;
+    }
+    setPhase('listening'); hint('Pode falar. Toque no núcleo para encerrar.');
+    startRecognizer();
+  }
+  function startRecognizer() {
+    const r = new SR();
+    r.lang = 'pt-BR'; r.interimResults = true; r.maxAlternatives = 1;
+    r.continuous = !isAndroid;
+    r._err = null; rec = r;
+    r.onresult = e => {
+      if (rec !== r) return;
+      let fin = '', inter = '';
+      for (let i = 0; i < e.results.length; i++) { const res = e.results[i]; if (res.isFinal) fin += res[0].transcript + ' '; else inter += res[0].transcript; }
+      heardFinal = fin.trim(); heardInterim = inter.trim(); showLive(); armSilence();
+    };
+    r.onerror = e => { r._err = e.error; };
+    r.onend = () => {
+      if (rec !== r) return;
+      rec = null; clearTimeout(silenceTimer);
+      if (!active || phase !== 'listening') return;
+      if (r._err === 'not-allowed' || r._err === 'service-not-allowed') {
+        micDenied = true; setPhase('typing'); hint('O microfone foi bloqueado. Libere no cadeado ao lado do endereço e toque de novo.'); return;
+      }
+      const said = (heardFinal + ' ' + heardInterim).trim();
+      if (said) { finishTurn(said); return; }
+      if (r._err === 'network' && settings.sttMode !== 'online') { listenLocal(); return; }
+      if (++emptyRestarts > 15) { setPhase('tap'); hint('Fiquei um tempo sem ouvir nada. Toque no núcleo para falar.'); return; }
+      setTimeout(() => { if (active && phase === 'listening' && !rec) startRecognizer(); }, r._err === 'network' ? 2000 : 300);
+    };
+    try { r.start(); } catch (e) { rec = null; setPhase('tap'); hint('Toque no núcleo para falar.'); }
+  }
+  function armSilence() {
+    clearTimeout(silenceTimer);
+    if (!(heardFinal + heardInterim).trim()) return;
+    silenceTimer = setTimeout(() => { if (rec) { try { rec.stop(); } catch (e) {} } }, settings.silence * 1000);
+  }
+  function killRecognizer() { clearTimeout(silenceTimer); if (rec) { const r = rec; rec = null; try { r.abort(); } catch (e) {} } if (recorder) recorder.cancel(); }
+  const STOP_RE = /^(jarvis[,!. ]*)?(encerrar|encerra|desligar|desliga|parar|pode parar|tchau|até logo|até mais)([,!. ]*jarvis)?[.!]*$/i;
+  async function finishTurn(said) {
+    heardFinal = ''; heardInterim = ''; live.textContent = '';
+    if (STOP_RE.test(said.trim())) {
+      addMsg('user', said);
+      const bye = 'Até logo, senhor. Estarei aqui quando precisar.';
+      addMsg('jarvis', bye);
+      const sp = makeSpeaker(); sp.push(bye); await sp.close();
+      stopAll(); return;
+    }
+    ask(said);
+  }
+
+  // ================= FALAR =================
+  const synth = window.speechSynthesis || null;
+  let voices = [], currentUtter = null, speakToken = 0;
+  function loadVoices() {
+    if (!synth) return;
+    voices = synth.getVoices();
+    const sel = $('#voiceSel');
+    const pt = voices.filter(v => /^pt/i.test(v.lang)), list = pt.length ? pt : voices;
+    sel.innerHTML = '';
+    const auto = document.createElement('option'); auto.value = ''; auto.textContent = 'Automática (português)'; sel.appendChild(auto);
+    list.forEach(v => { const o = document.createElement('option'); o.value = v.name; o.textContent = v.name + ' (' + v.lang + ')'; sel.appendChild(o); });
+    sel.value = list.some(v => v.name === settings.voiceName) ? settings.voiceName : '';
+  }
+  if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
+  function chosenVoice() {
+    if (!voices.length && synth) voices = synth.getVoices();
+    if (settings.voiceName) { const v = voices.find(x => x.name === settings.voiceName); if (v && (navigator.onLine || v.localService !== false)) return v; }
+    const pt = voices.filter(v => /^pt/i.test(v.lang));
+    const pool = navigator.onLine ? pt : (pt.filter(v => v.localService !== false).length ? pt.filter(v => v.localService !== false) : pt);
+    return pool.find(v => /^pt[-_]BR/i.test(v.lang)) || pool[0] || null;
+  }
+  const cleanForSpeech = t => String(t || '').replace(/https?:\/\/\S+/g, '').replace(/[*#_`>~|\[\]]/g, '').replace(/\s+/g, ' ').trim();
+  function chunk(text) {
+    if (!text) return [];
+    const sentences = text.match(/[^.!?…;]+[.!?…;]*\s*/g) || [text];
+    const out = []; let cur = '';
+    const push = s => { s = s.trim(); if (s) out.push(s); };
+    sentences.forEach(s => {
+      if ((cur + s).length <= 180) { cur += s; return; }
+      push(cur); cur = '';
+      while (s.length > 180) { let cut = s.lastIndexOf(',', 180); if (cut < 60) cut = s.lastIndexOf(' ', 180); if (cut < 1) cut = 180; push(s.slice(0, cut + 1)); s = s.slice(cut + 1); }
+      cur = s;
+    });
+    push(cur);
+    return out;
+  }
+  function unlockSpeech() { if (!synth) return; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); } catch (e) {} }
+
+  // ================= ENCERRAR =================
+  function stopAll() {
+    active = false; turnId++;
+    killRecognizer();
+    speakToken++;
+    try { synth && synth.cancel(); } catch (e) {}
+    try { engine && engine.interruptGenerate && engine.interruptGenerate(); } catch (e) {}
+    heardFinal = ''; heardInterim = ''; live.textContent = '';
+    setPhase('off'); hint(''); keepAwake(false);
+  }
+
+  // ================= Boas-vindas / download =================
+  function autoModel() {
+    const mem = navigator.deviceMemory || 0;
+    return mem && mem <= 3 ? 'leve' : 'padrao';
+  }
+  async function openWelcome() {
+    const g = await detectGPU();
+    if (!localStorage.getItem('jarvis-model-chosen')) { settings.model = autoModel(); saveSettings(); }
+    const m = MODELS[settings.model];
+    $('#modelAdvice').textContent = 'Vai baixar cerca de ' + (Math.round((m.tries[0][1] + 80) / 100) / 10).toString().replace('.', ',') + ' GB. Leva alguns minutos.';
+    $('#gpuErr').textContent = g.ok ? '' : g.why;
+    $('#downloadBtn').disabled = !g.ok;
+    $('#welcome').classList.add('open');
+  }
+  $('#welcomeLater').onclick = () => $('#welcome').classList.remove('open');
+
+  // Baixa o cérebro e a voz offline, testa os dois, e avisa quando está pronto
+  async function prepareAll() {
+    if (!navigator.onLine) { addMsg('sys', 'Conecte-se à internet (de preferência Wi‑Fi) para preparar o Jarvis. Só precisa uma vez.'); return; }
+    try {
+      const est = await navigator.storage.estimate();
+      const need = (MODELS[settings.model].tries[0][1] + 100) * 1.15 * 1048576;
+      if (est.quota && est.quota - est.usage < need) { addMsg('sys', 'Falta espaço no celular. Libere um pouco de espaço e tente de novo.'); return; }
+    } catch (e) {}
+    setPhase('loading'); hint('Deixe a tela ligada e o app aberto.');
+    keepAwake(true);
+    try {
+      showLoader(true, 'Passo 1 de 2: baixando o cérebro…', 0);
+      await loadEngine();
+      showLoader(true, 'Passo 1 de 2: testando o cérebro…', 1);
+      await generate([{ role: 'user', content: 'Responda apenas: ok' }], { max: 5, temperature: 0 });
+    } catch (e) {
+      showLoader(false); setPhase('off'); hint(''); keepAwake(false);
+      addMsg('sys', engineErrorText(e) + ' Toque no núcleo para tentar de novo.');
+      return;
+    }
+    let voiceOk = false;
+    try {
+      await ensureStt((frac, mb) => showLoader(true, 'Passo 2 de 2: baixando a voz offline: ' + Math.round(frac * 100) + '%', frac));
+      showLoader(true, 'Passo 2 de 2: testando a voz offline…', 1);
+      await sttCall('transcribe', new Float32Array(16000));
+      voiceOk = true;
+    } catch (e) { voiceOk = false; }
+    showLoader(false); setPhase('off'); hint(''); keepAwake(false);
+    addMsg('sys', voiceOk
+      ? 'Pronto! O Jarvis está preparado e funciona com ou sem internet. Toque no núcleo e fale.'
+      : 'O Jarvis está pronto. A voz offline não baixou agora, então sem internet você vai precisar digitar. Dá para tentar de novo em Configurações › Avançado.');
+  }
+  $('#downloadBtn').onclick = () => { $('#welcome').classList.remove('open'); prepareAll(); };
+
+  // ================= Botões =================
+  $('#core').addEventListener('click', async () => {
+    if (phase === 'loading') return;
+    if (active && (phase === 'tap' || phase === 'typing')) { unlockSpeech(); startListening(); return; }
+    if (active) { stopAll(); return; }
+    if (!engine && !loadingPromise) {
+      if (!(await isCached())) { openWelcome(); return; }
+      loadEngine().catch(() => {});
+    }
+    active = true; mode = 'voice';
+    unlockSpeech(); keepAwake(true);
+    startListening();
+  });
+  $('#endBtn').addEventListener('click', stopAll);
+
+  $('#typeForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const inp = $('#typeInput'); const q = inp.value.trim();
+    if (!q || ['thinking', 'searching', 'loading'].includes(phase)) return;
+    if (!engine && !loadingPromise && !(await isCached())) { openWelcome(); return; }
+    inp.value = '';
+    killRecognizer();
+    speakToken++; try { synth && synth.cancel(); } catch (err) {}
+    unlockSpeech();
+    if (!active) { active = true; mode = 'text'; }
+    ask(q);
+  });
+
+  let hideTimer = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (active) stopAll();
+      if (settings.freeMem && engine && engine !== window.__JARVIS_TEST_ENGINE) {
+        hideTimer = setTimeout(async () => {
+          if (!document.hidden || !engine) return;
+          const e = engine; engine = null; loadingPromise = null;
+          try { await e.unload(); } catch (err) {}
+        }, 3 * 60 * 1000);
+      }
+    } else {
+      clearTimeout(hideTimer);
+      if (!engine && !loadingPromise && settings.freeMem && !window.__JARVIS_TEST_ENGINE)
+        isCached().then(c => { if (c && !engine && !loadingPromise) loadEngine().catch(() => {}); });
+    }
+  });
+
+  // ----- Configurações -----
+  const ps = $('#pitchSel'), rs = $('#rateSel'), ss = $('#silenceSel'), ms = $('#modelSel'), vs = $('#voiceSel'), cs = $('#cityInput'), fk = $('#fcKey'), jk = $('#jinaKey'), ds = $('#deepSel'), fs = $('#freeSel');
+  function refreshSettingsUI() {
+    ps.value = settings.pitch; rs.value = settings.rate; ss.value = settings.silence; cs.value = settings.city || '';
+    fk.value = settings.fcKey || ''; jk.value = settings.jinaKey || ''; ds.checked = !!settings.deep; fs.checked = !!settings.freeMem;
+    fillModelSelect(ms);
+    $('#pitchVal').textContent = Number(settings.pitch).toFixed(2);
+    $('#rateVal').textContent = Number(settings.rate).toFixed(2);
+    $('#silVal').textContent = Number(settings.silence).toFixed(1);
+    $('#diag').textContent = '';
+    loadVoices();
+  }
+  ps.oninput = () => { settings.pitch = Number(ps.value); $('#pitchVal').textContent = settings.pitch.toFixed(2); saveSettings(); };
+  rs.oninput = () => { settings.rate = Number(rs.value); $('#rateVal').textContent = settings.rate.toFixed(2); saveSettings(); };
+  ss.oninput = () => { settings.silence = Number(ss.value); $('#silVal').textContent = settings.silence.toFixed(1); saveSettings(); };
+  vs.onchange = () => { settings.voiceName = vs.value; saveSettings(); };
+  cs.onchange = () => { settings.city = cs.value.trim(); saveSettings(); };
+  fk.onchange = () => { settings.fcKey = fk.value.trim(); saveSettings(); cache.clear(); };
+  jk.onchange = () => { settings.jinaKey = jk.value.trim(); saveSettings(); cache.clear(); };
+  ds.onchange = () => { settings.deep = ds.checked; saveSettings(); };
+  fs.onchange = () => { settings.freeMem = fs.checked; saveSettings(); };
+  ms.onchange = async () => {
+    if (ms.value === settings.model) return;
+    try { localStorage.setItem('jarvis-model-chosen', '1'); } catch (e) {}
+    stopAll();
+    settings.model = ms.value; saveSettings();
+    const old = engine; engine = null; loadingPromise = null; loadedName = '';
+    try { old && old !== window.__JARVIS_TEST_ENGINE && await old.unload(); } catch (e) {}
+    if (await isCached()) loadEngine().catch(e => addMsg('sys', engineErrorText(e)));
+  };
+  const sts = $('#sttSel');
+  sts.onchange = () => { settings.sttMode = sts.value; saveSettings(); };
+  async function refreshOffline() {
+    const c = await cachedChoice();
+    const v = sttReady || await sttIsDownloaded();
+    const box = $('#offlineStatus');
+    if (c && v) { box.className = 'ok'; box.textContent = '✓ Pronto para usar com ou sem internet.'; }
+    else if (c) { box.className = 'todo'; box.textContent = 'Funciona sem internet, mas sem a voz offline você vai precisar digitar quando estiver offline. Baixe em Avançado.'; }
+    else { box.className = 'todo'; box.textContent = 'O Jarvis ainda não foi preparado. Feche aqui e toque no núcleo.'; }
+    $('#sttDownload').textContent = v ? 'VOZ OFFLINE ✓' : 'BAIXAR VOZ OFFLINE';
+    $('#sttDownload').disabled = v;
+  }
+  $('#sttDownload').onclick = async () => {
+    if (!navigator.onLine) { $('#sttNote').textContent = 'Conecte-se à internet para baixar a voz offline (só precisa uma vez).'; return; }
+    const btn = $('#sttDownload'); btn.disabled = true;
+    try {
+      await ensureStt((frac, mb) => { btn.textContent = 'BAIXANDO ' + Math.round(frac * 100) + '%' + (mb ? ' DE ' + mb + ' MB' : ''); });
+      btn.textContent = 'TESTANDO…';
+      await sttCall('transcribe', new Float32Array(16000));   // um segundo de silêncio: confirma que funciona e guarda o motor
+      $('#sttNote').textContent = 'Voz offline pronta. Sem internet, o Jarvis entende você direto no celular.';
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'TENTAR DE NOVO';
+      $('#sttNote').textContent = 'Não consegui baixar a voz offline: ' + e.message;
+    }
+    refreshOffline();
+  };
+  $('#openSettings').onclick = () => { refreshSettingsUI(); sts.value = settings.sttMode; refreshOffline(); $('#settings').classList.add('open'); };
+  $('#closeSettings').onclick = () => $('#settings').classList.remove('open');
+  document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+  $('#testVoice').onclick = async () => {
+    if (active) return;
+    active = true; mode = 'text';
+    const sp = makeSpeaker(); sp.push('Às suas ordens, senhor. Todos os sistemas estão operacionais.'); await sp.close();
+    active = false; setPhase('off');
+  };
+  $('#testSearch').onclick = async () => {
+    const d = $('#diag'); d.textContent = 'Testando…';
+    const t = async (name, fn) => { try { const r = await fn(); return '✓ ' + name + (r ? ' — ' + r : ''); } catch (e) { return '✗ ' + name + ' — ' + (e.message || e); } };
+    const lines = await Promise.all([
+      t('Busca na web (Firecrawl)', async () => { const r = await searchWeb('notícias do Brasil hoje ' + Date.now() % 97); if (!r.length) throw new Error('sem resultados'); return r.length + ' resultados'; }),
+      t('Leitura de páginas (Jina)', async () => { const r = await readPage('https://pt.wikipedia.org/wiki/Brasil'); return Math.round(r.length / 1000) + ' mil caracteres lidos'; }),
+      t('Wikipédia', async () => { const r = await searchWikipedia('Brasil'); if (!r.length) throw new Error('sem resultados'); return r[0].title; }),
+      t('Clima (Open-Meteo)', async () => (await getWeather(settings.city || 'São Paulo')).text.split('.')[0]),
+      t('Cotação (ExchangeRate)', async () => (await getCurrency('USD')).text.replace('Cotação: ', '').split(' (')[0]),
+      t('Voz offline', async () => { if (!(sttReady || await sttIsDownloaded())) throw new Error('ainda não baixada'); return sttReady ? 'carregada' : 'baixada'; }),
+      t('Cérebro local', async () => {
+        const g = await detectGPU(); if (!g.ok) throw new Error(g.why);
+        if (engine) { const r = await generate([{ role: 'user', content: 'Responda apenas: ok' }], { max: 5, temperature: 0 }); return 'ligado e respondendo (' + loadedName + ')' + (r ? '' : ' — resposta vazia'); }
+        const c = await cachedChoice(); return (c ? 'baixado (' + c[0] + ')' : 'ainda não baixado') + (g.f16 ? '' : ' — modo compatível');
+      })
+    ]);
+    d.textContent = lines.join('\n');
+  };
+  $('#clearChat').onclick = () => {
+    history = []; cache.clear();
+    log.innerHTML = '<div class="empty" id="empty">Conversa limpa. Toque no núcleo e fale.</div>';
+    $('#settings').classList.remove('open');
+  };
+  $('#deleteModel').onclick = async () => {
+    stopAll();
+    try { engine && engine !== window.__JARVIS_TEST_ENGINE && await engine.unload(); } catch (e) {}
+    engine = null; loadingPromise = null; loadedName = '';
+    try {
+      const w = await getWebLLM();
+      for (const [base] of MODELS[settings.model].tries) await w.deleteModelAllInfoInCache(idFor(base)).catch(() => {});
+      $('#diag').textContent = 'Cérebro apagado do celular.';
+    } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
+  };
+
+  if (window.__JARVIS_TEST_ENGINE) window.__jarvisTest = { route, relevant, tryMath, setLast: p => { lastPlan = p; } };
+
+  // ================= Início =================
+  updateNet();
+  const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  function addManifest() {
+    if (document.querySelector('link[rel="manifest"]')) return;
+    [['manifest', 'jarvis.webmanifest'], ['icon', 'jarvis-icon-192.png'], ['apple-touch-icon', 'jarvis-icon-192.png']].forEach(([rel, href]) => {
+      const l = document.createElement('link'); l.rel = rel; l.href = href; document.head.appendChild(l);
+    });
+  }
+  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // O manifesto (nome e ícone do app) vem do sw.js: liga assim que ele estiver ativo
+    if (navigator.serviceWorker.controller) addManifest();
+    else navigator.serviceWorker.addEventListener('controllerchange', addManifest, { once: true });
+  }
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!isInstalled()) $('#installBar').hidden = false; });
+  $('#installNow').onclick = async () => {
+    if (!installEvt) return;
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch (e) {}
+    installEvt = null; $('#installBar').hidden = true;
+  };
+  window.addEventListener('appinstalled', () => {
+    $('#installBar').hidden = true;
+    addMsg('sys', 'Jarvis instalado! Agora você pode abrir pelo ícone na tela inicial, como qualquer aplicativo.');
+  });
+  setPhase('off');
+  if (!SR) addMsg('sys', 'Este navegador não tem reconhecimento de voz. Use o Chrome no Android. Você ainda pode digitar.');
+  if (!window.isSecureContext) addMsg('sys', 'Abra esta página por um endereço https:// para o microfone e o modo offline funcionarem.');
+  (async () => {
+    if (await isCached()) {
+      setPhase('loading');
+      try { await loadEngine(); } catch (e) { addMsg('sys', engineErrorText(e)); }
+      if (phase === 'loading') setPhase('off');
+    } else if (!window.__JARVIS_TEST_ENGINE) {
+      const conn = navigator.connection || {};
+      const g = await detectGPU();
+      if (g.ok && navigator.onLine && conn.type === 'wifi' && !conn.saveData) {
+        // No Wi-Fi: prepara sozinho, como um jogo baixando os arquivos na primeira vez
+        if (!localStorage.getItem('jarvis-model-chosen')) { settings.model = autoModel(); saveSettings(); }
+        addMsg('sys', 'Primeira vez aqui: estou me preparando sozinho pelo Wi‑Fi. Leva alguns minutos, deixe o app aberto.');
+        prepareAll();
+      } else openWelcome();
+    }
+  })();
+</script>
+</body>
+</html>
