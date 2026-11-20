@@ -46,24 +46,30 @@
   #live{min-height:24px;padding:2px 22px;text-align:center;color:var(--cyan2);font-size:15px;font-style:italic;position:relative;z-index:2}
 
   .core-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 10px;position:relative;z-index:2}
-  #core{position:relative;width:170px;height:170px;border-radius:50%;border:none;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  #core svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-  .r1,.r2,.r3,.heart{transform-origin:100px 100px}
+  #core{position:relative;width:170px;height:170px;border-radius:50%;border:none;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .12s}
+  #core:active{transform:scale(.94)}
+  #core .ring,#core .glow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;pointer-events:none}
+  #core .glow{border-radius:50%;background:radial-gradient(circle,rgba(62,224,255,.38) 0%,rgba(62,224,255,.12) 42%,transparent 66%);opacity:0;will-change:opacity}
   .r1{animation:spin 24s linear infinite}
   .r2{animation:spin 16s linear infinite reverse}
   .r3{animation:spin 40s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
-  @keyframes breathe{0%,100%{filter:drop-shadow(0 0 6px #3ee0ff)}50%{filter:drop-shadow(0 0 22px #3ee0ff)}}
-  body[data-phase="off"] #core svg{opacity:.6}
+  @keyframes glow{0%,100%{opacity:.25}50%{opacity:1}}
+  body[data-phase="off"] #core .ring{opacity:.6}
+  body[data-phase="off"] .r1,body[data-phase="off"] .r2,body[data-phase="off"] .r3{animation-play-state:paused}
   body[data-phase="listening"] .heart{animation:pulse 1.1s ease-in-out infinite}
-  body[data-phase="listening"] .r2{stroke:var(--ok)}
-  body[data-phase="thinking"] .r1,body[data-phase="searching"] .r1{animation-duration:2.2s}
-  body[data-phase="thinking"] .r2,body[data-phase="searching"] .r2{animation-duration:1.4s;stroke:var(--warn)}
-  body[data-phase="searching"] .r3{animation-duration:3s;stroke:var(--warn)}
-  body[data-phase="speaking"] #core svg{animation:breathe .9s ease-in-out infinite}
+  body[data-phase="listening"] .r2 circle{stroke:var(--ok)}
+  body[data-phase="thinking"] .r1,body[data-phase="searching"] .r1,body[data-phase="loading"] .r1{animation-duration:2.2s}
+  body[data-phase="thinking"] .r2,body[data-phase="searching"] .r2{animation-duration:1.4s}
+  body[data-phase="thinking"] .r2 circle,body[data-phase="searching"] .r2 circle{stroke:var(--warn)}
+  body[data-phase="searching"] .r3{animation-duration:3s}
+  body[data-phase="searching"] .r3 circle{stroke:var(--warn)}
+  body[data-phase="speaking"] .glow{animation:glow .9s ease-in-out infinite}
   body[data-phase="speaking"] .heart{animation:pulse .6s ease-in-out infinite}
   body[data-phase="tap"] .heart{animation:pulse 2s ease-in-out infinite}
+  button,a,input,select{touch-action:manipulation}
+  @media (prefers-reduced-motion:reduce){.r1,.r2,.r3,.heart,.glow{animation:none!important}}
   .core-label{font-family:var(--hud);font-weight:600;letter-spacing:.2em;text-transform:uppercase;font-size:14px;color:var(--cyan2)}
   #hint{font-size:12.5px;color:var(--dim);text-align:center;padding:0 24px;min-height:16px}
   #endBtn{display:none;background:rgba(255,80,80,.12);border:1px solid rgba(255,90,90,.45);color:#ffb3b3;border-radius:999px;padding:6px 16px;font:600 12px var(--hud);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
@@ -144,7 +150,12 @@
 
   <section class="core-wrap">
     <button id="core" aria-label="Iniciar ou encerrar conversa">
-      <svg viewBox="0 0 200 200" aria-hidden="true">
+      <div class="glow"></div>
+      <svg class="ring r3" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#3ee0ff" stroke-opacity=".35" stroke-width="1" stroke-dasharray="2 6"/></svg>
+      <svg class="ring r1" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="84" fill="none" stroke="#3ee0ff" stroke-width="3" stroke-dasharray="60 22 8 22"/></svg>
+      <svg class="ring r2" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="68" fill="none" stroke="#8af1ff" stroke-width="2" stroke-dasharray="4 10"/></svg>
+      <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="54" fill="none" stroke="#3ee0ff" stroke-opacity=".5" stroke-width="1"/></svg>
+      <svg class="ring heart" viewBox="0 0 200 200" aria-hidden="true">
         <defs>
           <radialGradient id="g" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="#e9fdff"/>
@@ -152,14 +163,8 @@
             <stop offset="100%" stop-color="#3ee0ff" stop-opacity="0"/>
           </radialGradient>
         </defs>
-        <circle class="r3" cx="100" cy="100" r="96" fill="none" stroke="#3ee0ff" stroke-opacity=".35" stroke-width="1" stroke-dasharray="2 6"/>
-        <circle class="r1" cx="100" cy="100" r="84" fill="none" stroke="#3ee0ff" stroke-width="3" stroke-dasharray="60 22 8 22"/>
-        <circle class="r2" cx="100" cy="100" r="68" fill="none" stroke="#8af1ff" stroke-width="2" stroke-dasharray="4 10"/>
-        <circle cx="100" cy="100" r="54" fill="none" stroke="#3ee0ff" stroke-opacity=".5" stroke-width="1"/>
-        <g class="heart">
-          <circle cx="100" cy="100" r="44" fill="url(#g)" opacity=".55"/>
-          <circle cx="100" cy="100" r="20" fill="#e9fdff"/>
-        </g>
+        <circle cx="100" cy="100" r="44" fill="url(#g)" opacity=".55"/>
+        <circle cx="100" cy="100" r="20" fill="#e9fdff"/>
       </svg>
     </button>
     <div class="core-label" id="coreLabel">Toque para iniciar</div>
@@ -763,7 +768,15 @@ async function handle({ id, type, text }) {
     for (const t of MODELS[key || settings.model].tries) if (await modelInCache(idFor(t[0]))) return t;
     return null;
   }
-  const isCached = async () => !!(await cachedChoice());
+  let cachedMemo = null;                         // resposta guardada: o toque no núcleo responde na hora
+  const isCached = async () => {
+    const key = settings.model + (useF16() ? 16 : 32);
+    if (cachedMemo && cachedMemo.key === key && Date.now() - cachedMemo.t < 5 * 60 * 1000) return cachedMemo.v;
+    const v = !!(await cachedChoice());
+    cachedMemo = { key, v, t: Date.now() };
+    return v;
+  };
+  let loadPct = 0, loadingFromNet = false;
 
   const isFatal = e => /memory|oom|device.?lost|quota|storage|network|fetch|failed to fetch|shader-f16/i.test(String(e && (e.message || e)));
 
@@ -784,7 +797,7 @@ async function handle({ id, type, text }) {
         const id = idFor(base);
         const inCache = await modelInCache(id);
         const progress = r => {
-          const p = typeof r.progress === 'number' ? r.progress : 0;
+          const p = typeof r.progress === 'number' ? r.progress : 0; loadPct = p; loadingFromNet = !inCache;
           showLoader(true, inCache ? 'Carregando o cérebro: ' + Math.round(p * 100) + '%'
             : 'Baixando o cérebro: ' + Math.round(p * 100) + '% (' + Math.round(p * mb) + ' de ' + mb + ' MB)', p);
         };
@@ -799,7 +812,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
           engine = worker
             ? await w.CreateWebWorkerMLCEngine(worker, id, { initProgressCallback: progress }, CHAT_OPTS)
             : await w.CreateMLCEngine(id, { initProgressCallback: progress }, CHAT_OPTS);
-          loadedName = base;
+          loadedName = base; cachedMemo = null; loadingFromNet = false;
           showLoader(false);
           touchEngine();
           // Aquece o cérebro em segundo plano: a primeira resposta de verdade sai mais rápida
@@ -820,7 +833,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
   async function fixBrokenBrain() {
     const wasF16 = useF16(), oldId = loadedName && loadedName !== 'teste' ? idFor(loadedName) : null;
-    const e = engine; engine = null; loadingPromise = null; warmup = null; warmupBroken = false;
+    const e = engine; engine = null; loadingPromise = null; warmup = null; warmupBroken = false; cachedMemo = null;
     try { e && e !== window.__JARVIS_TEST_ENGINE && await e.unload(); } catch (err) {}
     if (window.__JARVIS_TEST_ENGINE) engine = null;
     if (wasF16) {
@@ -1579,6 +1592,30 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     return null;
   }
 
+  // ================= RESPOSTA RÁPIDA (sem esperar o cérebro) =================
+  function quickReply(plan, q, material) {
+    if (plan.acao === 'conta') return 'O resultado é ' + fmtNum(plan.math.value) + ', senhor.';
+    if (plan.acao === 'exato') return plan.calc.expr + ', senhor.';
+    const n = norm(q);
+    if (plan.acao === 'responder') {
+      if (/^(obrigad|valeu|brigad)/.test(n)) return 'Disponha, senhor.';
+      if (/^(tudo bem|tudo bom|como vai)/.test(n)) return 'Tudo em ordem por aqui, senhor. Em que posso ajudar?';
+      if (SMALLTALK_RE.test(n)) return 'Às suas ordens, senhor. Em que posso ajudar?';
+      return 'Para isso eu preciso do meu cérebro, senhor, e ele ainda está ' + (loadingFromNet ? 'baixando (' + Math.round(loadPct * 100) + '%)' : 'ligando') + '. Pergunte de novo em instantes.';
+    }
+    if (!/^MATERIAL \(consultado agora\)/.test(material)) {
+      return navigator.onLine ? 'Não consegui pesquisar isso agora, senhor. Tente de novo em instantes.'
+        : 'Estou sem internet e meu cérebro ainda está ligando, senhor. Pergunte de novo em instantes.';
+    }
+    const body = material.replace(/^MATERIAL \(consultado agora\):\n/, '');
+    if (plan.acao === 'clima') return (body.match(/[^.]+\./g) || [body]).slice(0, 3).map(x => x.trim()).join(' ');
+    if (plan.acao === 'cotacao') return body.replace(/^Cotação: /, 'A cotação é ').replace(/\s*\(atualizada[^)]*\)/, '').trim();
+    const first = (body.split('\n')[0] || '').replace(/^- /, '');
+    const text = first.includes('): ') ? first.slice(first.indexOf('): ') + 3) : first;
+    const pick = (relevant(text, q, 320).match(/[^.!?]+[.!?]+/g) || [text]).slice(0, 2).join(' ').trim();
+    return pick ? 'Encontrei isto, senhor: ' + short(pick, 320) : 'Não encontrei uma resposta clara, senhor.';
+  }
+
   // ================= RESPONDER =================
   const SYSTEM = [
     'Você é JARVIS, assistente pessoal por voz: educado, eficiente, com humor seco e discreto. Chame o usuário de "senhor".',
@@ -1687,7 +1724,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const bubble = addMsg('jarvis', '…');
     let reply = '', sources = [], speaker = null;
     try {
-      const plan = route(q);
+      let plan = route(q);
       if (['pesquisar', 'clima', 'cotacao', 'ler'].includes(plan.acao)) lastPlan = plan;
       if (plan.acao !== 'lembrar_auto' && plan.acao !== 'lembrar') extractFacts(q).forEach(f => remember(f.text, f.cat));   // "meu nome é Eduardo, que horas são?" também anota
 
@@ -1710,13 +1747,24 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         return;
       }
 
+      // Cérebro pronto? Se ainda estiver baixando (ou o celular não tiver placa compatível), responde rápido sem ele
+      let useBrain = !!engine;
       if (!engine) {
-        setPhase('loading'); hint('Ligando o cérebro…');
-        await loadEngine();
+        const g = await detectGPU();
+        if (g.ok) {
+          if (!loadingPromise && await isCached()) loadEngine().catch(() => {});
+          if (loadingPromise) {
+            setPhase('loading'); hint(loadingFromNet ? 'O cérebro ainda está baixando. Vou responder rápido.' : 'Ligando o cérebro…');
+            const waitMs = loadingFromNet ? 0 : 30000;      // do celular: espera ligar; da internet: não espera o download
+            useBrain = await Promise.race([loadingPromise.then(() => !!engine, () => false), new Promise(r => setTimeout(() => r(false), waitMs))]);
+          }
+        }
         if (myTurn !== turnId) { bubble.remove(); return; }
+        if (!useBrain && plan.acao === 'responder' && navigator.onLine && !SMALLTALK_RE.test(norm(q)) && !CREATIVE_RE.test(norm(q)))
+          plan = { acao: 'pesquisar', consulta: cleanQuery(q) || q };     // sem cérebro: pesquisa e lê a resposta
       }
-      touchEngine();
-      setPhase('thinking'); hint('');
+      if (useBrain) touchEngine();
+      setPhase('thinking'); hint(useBrain ? '' : 'Resposta rápida: o cérebro ainda está carregando.');
 
       let material = '';
       if (plan.acao === 'conta') {
@@ -1753,9 +1801,11 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
       speaker = (mode === 'voice' || mode === 'text') && active ? newSpeaker() : null;
       let spokenUpTo = 0;
+      let paintQueued = false, lastText = '';
       const onText = t => {
           if (myTurn !== turnId) return;
-          setJarvisText(bubble, t || '…');
+          lastText = t;
+          if (!paintQueued) { paintQueued = true; requestAnimationFrame(() => { paintQueued = false; if (myTurn === turnId) setJarvisText(bubble, lastText || '…'); }); }
           if (!speaker) return;
           const rest = t.slice(spokenUpTo);
           let cut = -1, m; const re = /[.!?…;:](\s|$)/g;
@@ -1771,7 +1821,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       const maxTok = wantsMore ? 380 : 180;
       const foreign = /\b(ingles|espanhol|frances|alemao|italiano|japones|chines|coreano|russo|arabe|grego|hebraico|hindi|tailandes|latim|traduz\w*|traducao|idioma|lingua|alfabeto|kanji|emoji|simbolo|codigo|programa)/.test(norm(q));
       let raw;
-      try { raw = await generate(buildMessages(q, material, true), { max: maxTok, turn: myTurn, onText, foreign }); }
+      if (!useBrain) raw = quickReply(plan, q, material);
+      else try { raw = await generate(buildMessages(q, material, true), { max: maxTok, turn: myTurn, onText, foreign }); }
       catch (e) {
         if (!/context window|prompt tokens exceed/i.test(String(e && e.message))) throw e;
         // Pedido grande demais para a janela: tenta de novo enxuto, sem histórico
@@ -1922,7 +1973,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     $('#downloadBtn').disabled = !g.ok;
     $('#welcome').classList.add('open');
   }
-  $('#welcomeLater').onclick = () => $('#welcome').classList.remove('open');
+  let welcomeLater = false;               // tocou em "Depois": o Jarvis funciona no modo rápido sem ficar pedindo
+  $('#welcomeLater').onclick = () => { welcomeLater = true; $('#welcome').classList.remove('open'); addMsg('sys', 'Tudo bem. Enquanto isso eu respondo no modo rápido, pesquisando na internet. Quando quiser me deixar inteligente e funcionando sem internet, toque na engrenagem ⚙ e em PREPARAR AGORA.'); };
 
   // Baixa o cérebro e a voz offline, testa os dois, e avisa quando está pronto
   async function prepareAll() {
@@ -1932,7 +1984,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       const need = (MODELS[settings.model].tries[0][1] + 160) * 1.15 * 1048576;
       if (est.quota && est.quota - est.usage < need) { addMsg('sys', 'Falta espaço no celular. Libere um pouco de espaço e tente de novo.'); return; }
     } catch (e) {}
-    setPhase('loading'); hint('Deixe a tela ligada e o app aberto.');
+    if (!active) { setPhase('loading'); hint('Deixe a tela ligada e o app aberto.'); }
     keepAwake(true);
     try {
       const brainStep = async () => {
@@ -1949,7 +2001,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         await brainStep();
       }
     } catch (e) {
-      showLoader(false); setPhase('off'); hint(''); keepAwake(false);
+      showLoader(false); if (!active) { setPhase('off'); hint(''); keepAwake(false); }
       addMsg('sys', engineErrorText(e) + ' Toque no núcleo para tentar de novo.');
       return;
     }
@@ -1967,7 +2019,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       showLoader(true, 'Passo 3 de 3: testando a voz do Jarvis…', 1);
       await ttsCall('speak', 'Pronto.');
     } catch (e) { jarvisVoiceReady = false; }
-    showLoader(false); setPhase('off'); hint(''); keepAwake(false);
+    showLoader(false); if (!active) { setPhase('off'); hint(''); keepAwake(false); }
     addMsg('sys', voiceOk
       ? 'Pronto! O Jarvis está preparado e funciona com ou sem internet. Toque no núcleo e fale.'
       : 'O Jarvis está pronto. A voz offline não baixou agora, então sem internet você vai precisar digitar. Dá para tentar de novo em Configurações › Avançado.');
@@ -1976,12 +2028,11 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
   // ================= Botões =================
   $('#core').addEventListener('click', async () => {
-    if (phase === 'loading') return;
     if (active && (phase === 'tap' || phase === 'typing')) { unlockSpeech(); startListening(); return; }
     if (active) { stopAll(); return; }
     if (!engine && !loadingPromise) {
-      if (!(await isCached())) { openWelcome(); return; }
-      loadEngine().catch(() => {});
+      if (!(await isCached())) { if (!welcomeLater) { openWelcome(); return; } }
+      else loadEngine().catch(() => {});
     }
     active = true; mode = 'voice';
     unlockSpeech(); keepAwake(true);
@@ -1993,8 +2044,9 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   $('#typeForm').addEventListener('submit', async e => {
     e.preventDefault();
     const inp = $('#typeInput'); const q = inp.value.trim();
-    if (!q || ['thinking', 'searching', 'loading'].includes(phase)) return;
-    if (!engine && !loadingPromise && !(await isCached())) { openWelcome(); return; }
+    if (!q) return;
+    if (['thinking', 'searching'].includes(phase) && active) { hint('Um instante, senhor, ainda estou respondendo.'); return; }
+    if (!engine && !loadingPromise && !welcomeLater && !(await isCached())) { openWelcome(); return; }
     inp.value = '';
     killRecognizer();
     speakToken++; try { synth && synth.cancel(); } catch (err) {} try { currentNeural && currentNeural.stop(); } catch (err) {}
@@ -2015,7 +2067,6 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       clearTimeout(hideTimer);
       if (!engine && !loadingPromise && settings.freeMem && !window.__JARVIS_TEST_ENGINE)
         isCached().then(c => { if (c && !engine && !loadingPromise) loadEngine().catch(() => {}); });
-      if (settings.freeMem) warmJarvisVoice();
     }
   });
 
@@ -2044,7 +2095,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (ms.value === settings.model) return;
     try { localStorage.setItem('jarvis-model-chosen', '1'); } catch (e) {}
     stopAll();
-    settings.model = ms.value; saveSettings();
+    settings.model = ms.value; saveSettings(); cachedMemo = null;
     const old = engine; engine = null; loadingPromise = null; loadedName = '';
     try { old && old !== window.__JARVIS_TEST_ENGINE && await old.unload(); } catch (e) {}
     if (await isCached()) loadEngine().catch(e => addMsg('sys', engineErrorText(e)));
@@ -2084,7 +2135,12 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const box = $('#offlineStatus');
     if (c && v) { box.className = 'ok'; box.textContent = '✓ Pronto para usar com ou sem internet.'; }
     else if (c) { box.className = 'todo'; box.textContent = 'Funciona sem internet, mas sem a voz offline você vai precisar digitar quando estiver offline. Baixe em Avançado.'; }
-    else { box.className = 'todo'; box.textContent = 'O Jarvis ainda não foi preparado. Feche aqui e toque no núcleo.'; }
+    else {
+      box.className = 'todo'; box.textContent = 'O Jarvis ainda não foi preparado. ';
+      const b = document.createElement('button'); b.className = 'primary'; b.textContent = 'PREPARAR AGORA'; b.style.cssText = 'display:block;width:100%;margin-top:10px';
+      b.onclick = () => { $('#settings').classList.remove('open'); openWelcome(); };
+      box.appendChild(b);
+    }
     $('#sttDownload').textContent = v ? 'VOZ OFFLINE ✓' : 'BAIXAR VOZ OFFLINE';
     $('#sttDownload').disabled = v;
   }
@@ -2178,7 +2234,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   $('#deleteModel').onclick = async () => {
     stopAll();
     try { engine && engine !== window.__JARVIS_TEST_ENGINE && await engine.unload(); } catch (e) {}
-    engine = null; loadingPromise = null; loadedName = '';
+    engine = null; loadingPromise = null; loadedName = ''; cachedMemo = null;
     try {
       const w = await getWebLLM();
       for (const [base] of MODELS[settings.model].tries) for (const sfx of ['-q4f16_1-MLC', '-q4f32_1-MLC']) await w.deleteModelAllInfoInCache(base + sfx).catch(() => {});
@@ -2186,7 +2242,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
   };
 
-  if (window.__JARVIS_TEST_ENGINE) window.__jarvisTest = { looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
+  if (window.__JARVIS_TEST_ENGINE) window.__jarvisTest = { quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
 
   // ================= Início =================
   history = loadHistory();
@@ -2221,12 +2277,11 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   setPhase('off');
   if (!SR) addMsg('sys', 'Este navegador não tem reconhecimento de voz. Use o Chrome no Android. Você ainda pode digitar.');
   if (!window.isSecureContext) addMsg('sys', 'Abra esta página por um endereço https:// para o microfone e o modo offline funcionarem.');
-  warmJarvisVoice();
-  (async () => {
+  jarvisVoiceDownloaded().then(v => { if (v) jarvisVoiceOnPhone = true; });   // só confere; a voz liga no primeiro toque
+  const whenIdle = fn => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 2500 }) : setTimeout(fn, 1200));
+  whenIdle(async () => {
     if (await isCached()) {
-      setPhase('loading');
-      try { await loadEngine(); } catch (e) { addMsg('sys', engineErrorText(e)); }
-      if (phase === 'loading') setPhase('off');
+      if (!engine && !loadingPromise) loadEngine().catch(e => addMsg('sys', engineErrorText(e)));
     } else if (!window.__JARVIS_TEST_ENGINE) {
       const conn = navigator.connection || {};
       const g = await detectGPU();
@@ -2237,7 +2292,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         prepareAll();
       } else openWelcome();
     }
-  })();
+  });
 </script>
 </body>
 </html>
