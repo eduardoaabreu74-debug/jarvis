@@ -3,65 +3,75 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#020b12">
+<meta name="theme-color" content="#0b0b0c">
 <title>Jarvis</title>
 <style>
   :root{
+    --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
     --hud:"Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,sans-serif;
-    --panel:rgba(10,32,46,.72); --line:rgba(62,224,255,.22);
-    --cyan:#3ee0ff; --cyan2:#8af1ff; --dim:#6f8fa0; --text:#dff7ff; --warn:#ffb454; --ok:#4dff9a;
+    --bg:#0b0b0c; --bg2:#141416; --card:#1b1b1e; --card2:#232327; --line:#2e2e33; --line2:#3d3d44;
+    --orange:#ff7a1a; --orange2:#ffa257; --orange-soft:rgba(255,122,26,.14);
+    --text:#f2f2f3; --dim:#9a9aa3; --dim2:#6c6c75; --warn:#ffc247; --ok:#ffa257; --err:#ff6b5b;
+    --radius:16px; --shadow:0 8px 28px rgba(0,0,0,.45);
+    /* nomes antigos usados no código continuam valendo */
+    --cyan:var(--orange); --cyan2:var(--orange2); --panel:var(--card);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
-    font-family:system-ui,-apple-system,Roboto,sans-serif;color:var(--text);
-    background:radial-gradient(ellipse at 50% 70%,#06283a 0%,#03131e 45%,#000 100%);
+    font-family:var(--font);color:var(--text);-webkit-font-smoothing:antialiased;
+    background:radial-gradient(120% 70% at 50% 100%,#1d1410 0%,var(--bg) 55%);
     display:flex;flex-direction:column;overflow:hidden;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  body::before{
-    content:"";position:fixed;inset:0;pointer-events:none;opacity:.25;
-    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
-    background-size:42px 42px;-webkit-mask-image:radial-gradient(ellipse at center,#000 20%,transparent 75%);mask-image:radial-gradient(ellipse at center,#000 20%,transparent 75%);
-  }
-  header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 8px;position:relative;z-index:2}
-  .brand{font-family:var(--hud);font-weight:700;letter-spacing:.42em;font-size:22px;color:var(--cyan);text-shadow:0 0 14px rgba(62,224,255,.6)}
-  .status{font-family:var(--hud);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
-  body[data-phase="listening"] .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
-  body[data-phase="thinking"] .dot,body[data-phase="searching"] .dot{background:var(--warn);box-shadow:0 0 10px var(--warn)}
-  body[data-phase="speaking"] .dot{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
-  .iconbtn{flex:0 0 38px;background:none;border:1px solid var(--line);color:var(--cyan2);border-radius:10px;width:38px;height:38px;font-size:18px;cursor:pointer}
+  ::selection{background:var(--orange);color:#000}
 
-  #log{flex:1;overflow-y:auto;padding:8px 16px 4px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}
-  .msg{max-width:86%;padding:10px 14px;border-radius:14px;line-height:1.45;font-size:15px;white-space:pre-wrap;word-wrap:break-word}
-  .msg.user{align-self:flex-end;background:rgba(62,224,255,.14);border:1px solid rgba(62,224,255,.3)}
-  .msg.jarvis{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
-  .msg.jarvis .who{display:block;font-family:var(--hud);font-weight:700;font-size:11px;letter-spacing:.25em;color:var(--cyan);margin-bottom:3px}
-  .msg.jarvis .src{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
-  .msg.jarvis .src a{font-size:11.5px;color:var(--cyan2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:3px 9px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .msg.sys .retry{display:block;margin:10px auto 2px;background:var(--cyan);color:#012;border:none;border-radius:10px;padding:9px 16px;font:700 13px var(--hud);letter-spacing:.12em;cursor:pointer}
-  .msg.ok{align-self:center;font-size:14px;font-weight:600;color:var(--ok);background:rgba(77,255,154,.1);border:1px solid rgba(77,255,154,.45);text-align:center;max-width:94%}
-  .msg.sys{align-self:center;font-size:12.5px;color:var(--warn);background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.25);text-align:center;max-width:94%}
-  .empty{margin:auto;text-align:center;color:var(--dim);font-size:14px;line-height:1.6;padding:20px}
+  header{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;position:relative;z-index:2;border-bottom:1px solid rgba(255,255,255,.04)}
+  .brand{font-family:var(--hud);font-weight:700;letter-spacing:.32em;font-size:20px;color:var(--text);flex:1;min-width:0;white-space:nowrap}
+  .brand::first-letter{color:var(--orange)}
+  .status{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim2);transition:background .2s,box-shadow .2s}
+  body[data-phase="listening"] .dot{background:var(--orange);box-shadow:0 0 0 4px var(--orange-soft)}
+  body[data-phase="thinking"] .dot,body[data-phase="searching"] .dot,body[data-phase="loading"] .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(255,194,71,.15)}
+  body[data-phase="speaking"] .dot{background:var(--orange2);box-shadow:0 0 0 4px var(--orange-soft)}
+  .chip{font-size:10.5px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:99px;background:var(--card2);color:var(--dim);border:1px solid var(--line)}
+  .chip.off{color:var(--warn);border-color:rgba(255,194,71,.35)}
+  .iconbtn{flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--text);font-size:18px;cursor:pointer;transition:background .15s}
+  .iconbtn:active{background:var(--card2)}
 
-  #live{min-height:24px;padding:2px 22px;text-align:center;color:var(--cyan2);font-size:15px;font-style:italic;position:relative;z-index:2}
+  #log{flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:2;scroll-behavior:smooth;overscroll-behavior:contain}
+  .msg{max-width:86%;padding:10px 14px;border-radius:18px;line-height:1.45;font-size:15px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;animation:in .18s ease-out}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .msg.user{align-self:flex-end;background:var(--orange);color:#160a00;font-weight:500;border-bottom-right-radius:6px}
+  .msg.jarvis{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:6px}
+  .msg.jarvis .who{display:block;font-size:10.5px;font-weight:800;letter-spacing:.18em;color:var(--orange);margin-bottom:4px}
+  .msg.jarvis .src{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
+  .msg.jarvis .src a{font-size:11.5px;color:var(--dim);text-decoration:none;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msg.jarvis .src a.actbtn{background:var(--orange);color:#160a00;font-weight:700;font-size:14px;padding:9px 16px;border:none}
+  .msg.sys{align-self:center;font-size:13px;color:var(--text);background:var(--bg2);border:1px solid var(--line);text-align:center;max-width:94%;border-radius:14px}
+  .msg.ok{align-self:center;font-size:14px;font-weight:600;color:var(--orange2);background:var(--orange-soft);border:1px solid rgba(255,122,26,.4);text-align:center;max-width:94%;border-radius:14px}
+  .msg.sys .retry{display:block;margin:10px auto 2px;background:var(--orange);color:#160a00;border:none;border-radius:10px;padding:9px 16px;font:700 13px var(--font);letter-spacing:.06em;cursor:pointer}
+  .msg.sys .note{color:var(--dim)}
+  .empty{margin:auto;text-align:center;color:var(--dim);font-size:14.5px;line-height:1.6;padding:20px}
+
+  #live{min-height:24px;padding:2px 22px;text-align:center;color:var(--orange2);font-size:15px;font-style:italic;position:relative;z-index:2}
 
   .core-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 10px;position:relative;z-index:2}
-  #core{position:relative;width:170px;height:170px;border-radius:50%;border:none;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .12s}
+  #core{position:relative;width:164px;height:164px;border-radius:50%;border:none;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .12s}
   #core:active{transform:scale(.94)}
+  #core:focus-visible{outline:2px solid var(--orange);outline-offset:6px}
   #core .ring,#core .glow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;pointer-events:none}
-  #core .glow{border-radius:50%;background:radial-gradient(circle,rgba(62,224,255,.38) 0%,rgba(62,224,255,.12) 42%,transparent 66%);opacity:0;will-change:opacity}
+  #core .glow{border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.42) 0%,rgba(255,122,26,.12) 42%,transparent 66%);opacity:0;will-change:opacity}
   .r1{animation:spin 24s linear infinite}
   .r2{animation:spin 16s linear infinite reverse}
   .r3{animation:spin 40s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
   @keyframes glow{0%,100%{opacity:.25}50%{opacity:1}}
-  body[data-phase="off"] #core .ring{opacity:.6}
+  body[data-phase="off"] #core .ring{opacity:.55}
   body[data-phase="off"] .r1,body[data-phase="off"] .r2,body[data-phase="off"] .r3{animation-play-state:paused}
   body[data-phase="listening"] .heart{animation:pulse 1.1s ease-in-out infinite}
-  body[data-phase="listening"] .r2 circle{stroke:var(--ok)}
+  body[data-phase="listening"] .r2 circle{stroke:#fff}
   body[data-phase="thinking"] .r1,body[data-phase="searching"] .r1,body[data-phase="loading"] .r1{animation-duration:2.2s}
   body[data-phase="thinking"] .r2,body[data-phase="searching"] .r2{animation-duration:1.4s}
   body[data-phase="thinking"] .r2 circle,body[data-phase="searching"] .r2 circle{stroke:var(--warn)}
@@ -70,67 +80,72 @@
   body[data-phase="speaking"] .glow{animation:glow .9s ease-in-out infinite}
   body[data-phase="speaking"] .heart{animation:pulse .6s ease-in-out infinite}
   body[data-phase="tap"] .heart{animation:pulse 2s ease-in-out infinite}
-  button,a,input,select{touch-action:manipulation}
-  @media (prefers-reduced-motion:reduce){.r1,.r2,.r3,.heart,.glow{animation:none!important}}
-  .core-label{font-family:var(--hud);font-weight:600;letter-spacing:.2em;text-transform:uppercase;font-size:14px;color:var(--cyan2)}
-  #hint{font-size:12.5px;color:var(--dim);text-align:center;padding:0 24px;min-height:16px}
-  #endBtn{display:none;background:rgba(255,80,80,.12);border:1px solid rgba(255,90,90,.45);color:#ffb3b3;border-radius:999px;padding:6px 16px;font:600 12px var(--hud);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+  .core-label{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text)}
+  #hint{font-size:12.5px;color:var(--dim);text-align:center;padding:0 24px;min-height:16px;line-height:1.4}
+  #endBtn{display:none;background:rgba(255,107,91,.12);border:1px solid rgba(255,107,91,.45);color:#ffb3aa;border-radius:999px;padding:7px 18px;font:700 12px var(--font);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
   body.active #endBtn{display:inline-block}
+  button,a,input,select{touch-action:manipulation}
+  @media (prefers-reduced-motion:reduce){.r1,.r2,.r3,.heart,.glow,.msg{animation:none!important}}
 
-  #loadBox{display:none;width:min(320px,80vw);text-align:center}
+  #loadBox{display:none;width:min(330px,84vw);text-align:center}
   #loadBox.show{display:block}
-  .bar{height:6px;border-radius:99px;background:rgba(62,224,255,.15);overflow:hidden;margin-top:6px}
-  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3ee0ff,#8af1ff);box-shadow:0 0 10px #3ee0ff;transition:width .3s}
-  #loadText{font-size:12.5px;color:var(--cyan2)}
+  .bar{height:6px;border-radius:99px;background:var(--card2);overflow:hidden;margin-top:7px}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--orange),var(--orange2));transition:width .3s}
+  #loadText{font-size:12.5px;color:var(--orange2);line-height:1.4}
 
-  form.ask{display:flex;gap:8px;padding:6px 14px 14px;position:relative;z-index:2}
-  form.ask input{flex:1;min-width:0;background:rgba(5,22,33,.85);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 14px;font:15px system-ui,Roboto,sans-serif;outline:none}
-  form.ask input:focus{border-color:var(--cyan)}
-  form.ask button{background:var(--cyan);color:#012;border:none;border-radius:12px;padding:0 16px;font:700 14px var(--hud);letter-spacing:.12em;cursor:pointer}
+  form.ask{display:flex;gap:8px;padding:8px 12px 12px;position:relative;z-index:2}
+  form.ask input{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:13px 15px;font:15px var(--font);outline:none;transition:border-color .15s}
+  form.ask input::placeholder{color:var(--dim2)}
+  form.ask input:focus{border-color:var(--orange)}
+  form.ask button{background:var(--orange);color:#160a00;border:none;border-radius:14px;padding:0 18px;font:800 13px var(--font);letter-spacing:.08em;cursor:pointer}
+  form.ask button:active{filter:brightness(.9)}
 
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;justify-content:center;z-index:10}
-  .overlay.open{display:flex}
-  .sheet{width:100%;max-width:480px;max-height:92vh;overflow-y:auto;background:#061a26;border:1px solid var(--line);border-radius:18px 18px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom))}
-  .sheet h2{font-family:var(--hud);letter-spacing:.25em;color:var(--cyan);font-size:16px;margin-bottom:14px}
-  .sheet p{font-size:13.5px;line-height:1.55;color:#b9d6e2;margin-bottom:10px}
-  .sheet a{color:var(--cyan2)}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  .overlay.open{display:flex;animation:fade .15s ease-out}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet{width:100%;max-width:480px;max-height:92vh;overflow-y:auto;overscroll-behavior:contain;background:var(--bg2);border:1px solid var(--line);border-bottom:none;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));box-shadow:var(--shadow)}
+  .sheet::before{content:"";display:block;width:42px;height:4px;border-radius:9px;background:var(--line2);margin:-6px auto 16px}
+  .sheet h2{font-size:15px;font-weight:800;letter-spacing:.16em;color:var(--text);margin-bottom:14px}
+  .sheet p{font-size:14px;line-height:1.55;color:#cfcfd4;margin-bottom:10px}
+  .sheet a{color:var(--orange2)}
   .row{margin-bottom:15px}
   .row label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
-  .row select,.row input[type=text],.row input[type=password]{width:100%;background:#031019;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:14px system-ui,Roboto,sans-serif}
-  .row input[type=range]{width:100%}
+  .row select,.row input[type=text],.row input[type=password]{width:100%;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px;font:14px var(--font)}
+  .row input[type=range]{width:100%;accent-color:var(--orange)}
+  input[type=checkbox]{accent-color:var(--orange)}
   .btns{display:flex;gap:10px;flex-wrap:wrap}
-  .sheet button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--cyan2);font:600 14px var(--hud);letter-spacing:.12em;cursor:pointer}
-  .sheet button.primary{background:var(--cyan);color:#012;border:none}
-  .sheet button.danger{border-color:rgba(255,90,90,.45);color:#ffb3b3}
+  .sheet button{flex:1;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font:700 13px var(--font);letter-spacing:.06em;cursor:pointer}
+  .sheet button:active{background:var(--card2)}
+  .sheet button.primary{background:var(--orange);color:#160a00;border:none}
+  .sheet button.danger{border-color:rgba(255,107,91,.45);color:#ffb3aa;background:transparent}
   .sheet button:disabled{opacity:.4}
   .note{font-size:12px;color:var(--dim);line-height:1.5;margin-top:5px}
-  .err{color:#ff9d9d;font-size:12.5px;margin-top:6px;line-height:1.45}
-  .status{white-space:nowrap}
-  @media (max-width:430px){ .brand{letter-spacing:.28em;font-size:19px} .status{font-size:11.5px;letter-spacing:.12em;gap:6px} }
-  @media (max-width:360px){ .brand{letter-spacing:.18em;font-size:17px} #statusText{display:none} header{padding:12px 12px 6px} }
-  #installBar{position:relative;z-index:3;margin:4px 14px 6px;padding:10px 12px;border-radius:14px;display:flex;align-items:center;gap:10px;
-    background:linear-gradient(90deg,rgba(62,224,255,.18),rgba(62,224,255,.06));border:1px solid rgba(62,224,255,.45);font-size:13.5px}
-  #installBar[hidden]{display:none}
-  #installBar span{flex:1;line-height:1.35}
-  #installBar button{background:var(--cyan);color:#012;border:none;border-radius:10px;padding:9px 14px;font:700 13px var(--hud);letter-spacing:.12em;cursor:pointer}
-  .msg.jarvis .src a.actbtn{background:var(--cyan);color:#012;font-weight:700;font-size:14px;padding:8px 16px;border:none}
-  details.memlist summary{cursor:pointer;color:var(--cyan2);font-size:13.5px;padding:4px 0}
-  #memItems{margin-top:8px;max-height:260px;overflow-y:auto}
-  .memitem{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
-  .memitem span{flex:1;line-height:1.35}
-  .memitem small{color:var(--dim);font-size:11px}
-  .memitem button{flex:0 0 auto!important;width:32px;height:32px;padding:0!important;border-radius:8px!important;color:#ffb3b3!important}
-  .chip{font-family:var(--hud);font-size:10.5px;letter-spacing:.16em;padding:2px 7px;border-radius:99px;border:1px solid rgba(77,255,154,.45);color:var(--ok);margin-left:4px}
-  .chip.off{border-color:rgba(255,180,84,.5);color:var(--warn)}
-  .sec{font-family:var(--hud);letter-spacing:.2em;color:var(--cyan);font-size:13px;margin:18px 0 10px;border-top:1px solid var(--line);padding-top:14px}
-  #offlineStatus{font-size:13.5px;line-height:1.5;padding:10px 12px;border-radius:12px;margin:0 0 16px;border:1px solid var(--line);background:rgba(62,224,255,.06)}
-  #offlineStatus.ok{border-color:rgba(77,255,154,.45);color:var(--ok)}
-  #offlineStatus.todo{border-color:rgba(255,180,84,.45);color:var(--warn)}
+  .err{color:var(--err);font-size:12.5px;margin-top:6px;line-height:1.45}
+  .sec{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--orange);margin:18px 0 10px;border-top:1px solid var(--line);padding-top:14px}
+  #offlineStatus{font-size:13.5px;line-height:1.5;padding:11px 13px;border-radius:14px;margin:0 0 16px;border:1px solid var(--line);background:var(--card)}
+  #offlineStatus.ok{border-color:rgba(255,122,26,.4);color:var(--orange2)}
+  #offlineStatus.todo{border-color:rgba(255,194,71,.35);color:var(--warn)}
   details.adv{border-top:1px solid var(--line);padding-top:10px}
-  details.adv summary{cursor:pointer;color:var(--dim);font-size:14px;padding:6px 0}
+  details.adv summary,details.memlist summary{cursor:pointer;font-size:14px;padding:6px 0}
+  details.adv summary{color:var(--dim)}
+  details.memlist summary{color:var(--orange2);font-size:13.5px}
+  #memItems{margin-top:8px;max-height:260px;overflow-y:auto}
+  .memitem{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .memitem span{flex:1;line-height:1.35}
+  .memitem small{color:var(--dim2);font-size:11px}
+  .memitem button{flex:0 0 auto!important;width:32px;height:32px;padding:0!important;border-radius:9px!important;color:#ffb3aa!important}
   label.check{display:flex!important;align-items:center;gap:10px;color:var(--text)!important}
   label.check input{width:20px;height:20px}
-  #diag{font-size:12.5px;line-height:1.7;color:#b9d6e2;margin-top:8px;white-space:pre-line}
+  #diag{font-size:12.5px;line-height:1.7;color:#cfcfd4;margin-top:8px;white-space:pre-line}
+
+  #installBar{position:relative;z-index:3;margin:8px 12px 2px;padding:10px 12px;border-radius:14px;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid rgba(255,122,26,.4);font-size:13.5px}
+  #installBar[hidden]{display:none}
+  #installBar span{flex:1;line-height:1.35}
+  #installBar button{background:var(--orange);color:#160a00;border:none;border-radius:10px;padding:9px 14px;font:800 12.5px var(--font);letter-spacing:.06em;cursor:pointer}
+
+  @media (max-width:430px){ .brand{letter-spacing:.26em;font-size:18px} .status{font-size:11px;gap:6px} }
+  @media (max-width:360px){ .brand{letter-spacing:.16em;font-size:16px} #statusText{display:none} header{padding:12px 12px 8px} #core{width:150px;height:150px} }
+  @media (max-height:640px){ #core{width:132px;height:132px} .core-wrap{padding:2px 0 6px} }
 </style>
 </head>
 <body data-phase="off">
@@ -154,20 +169,20 @@
   <section class="core-wrap">
     <button id="core" aria-label="Iniciar ou encerrar conversa">
       <div class="glow"></div>
-      <svg class="ring r3" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#3ee0ff" stroke-opacity=".35" stroke-width="1" stroke-dasharray="2 6"/></svg>
-      <svg class="ring r1" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="84" fill="none" stroke="#3ee0ff" stroke-width="3" stroke-dasharray="60 22 8 22"/></svg>
-      <svg class="ring r2" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="68" fill="none" stroke="#8af1ff" stroke-width="2" stroke-dasharray="4 10"/></svg>
-      <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="54" fill="none" stroke="#3ee0ff" stroke-opacity=".5" stroke-width="1"/></svg>
+      <svg class="ring r3" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#ff7a1a" stroke-opacity=".35" stroke-width="1" stroke-dasharray="2 6"/></svg>
+      <svg class="ring r1" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="84" fill="none" stroke="#ff7a1a" stroke-width="3" stroke-dasharray="60 22 8 22"/></svg>
+      <svg class="ring r2" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="68" fill="none" stroke="#8a8a93" stroke-width="2" stroke-dasharray="4 10"/></svg>
+      <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="54" fill="none" stroke="#4a4a52" stroke-opacity="1" stroke-width="1"/></svg>
       <svg class="ring heart" viewBox="0 0 200 200" aria-hidden="true">
         <defs>
           <radialGradient id="g" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#e9fdff"/>
-            <stop offset="35%" stop-color="#3ee0ff"/>
-            <stop offset="100%" stop-color="#3ee0ff" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#fff1e4"/>
+            <stop offset="35%" stop-color="#ff7a1a"/>
+            <stop offset="100%" stop-color="#ff7a1a" stop-opacity="0"/>
           </radialGradient>
         </defs>
         <circle cx="100" cy="100" r="44" fill="url(#g)" opacity=".55"/>
-        <circle cx="100" cy="100" r="20" fill="#e9fdff"/>
+        <circle cx="100" cy="100" r="20" fill="#fff1e4"/>
       </svg>
     </button>
     <div class="core-label" id="coreLabel">Toque para iniciar</div>
@@ -213,7 +228,7 @@
       <div class="row">
         <label for="fxSel">Efeito</label>
         <select id="fxSel">
-          <option value="ia">Assistente de IA (grave, com eco de sala de comando)</option>
+          <option value="ia">Assistente de IA (grave, com eco)</option>
           <option value="natural">Natural (sem efeito)</option>
         </select>
       </div>
@@ -265,6 +280,7 @@
             <option value="online">Só pelo Google (precisa de internet)</option>
           </select>
         </div>
+        <div class="row"><label class="check"><input type="checkbox" id="brainSel"> Usar o cérebro do celular</label><div class="note">Desmarque se o celular travar: o Jarvis passa a responder pesquisando na internet (modo rápido).</div></div>
         <div class="row"><label class="check"><input type="checkbox" id="deepSel"> Ler as páginas encontradas na pesquisa</label></div>
         <div class="row"><label class="check"><input type="checkbox" id="freeSel"> Economizar memória (desliga o que estiver parado)</label><div class="note">A voz sai da memória depois de 4 minutos sem falar, o ouvido offline depois de 90 segundos, e o cérebro depois de 10 minutos sem perguntas ou 3 minutos fora do app. Tudo volta sozinho quando precisar.</div></div>
         <div class="row">
@@ -293,7 +309,7 @@
 
 <script type="module">
   'use strict';
-  const APP_VERSION = 16;                       // muda a cada atualização (igual ao do sw.js)
+  const APP_VERSION = 19;                       // muda a cada atualização (igual ao do sw.js)
   const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js';
   const $ = s => document.querySelector(s);
   const log = $('#log'), live = $('#live');
@@ -304,7 +320,7 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
   const settings = Object.assign(
-    { voiceName: '', pitch: 0.8, rate: 1.05, silence: 1.6, model: 'padrao', city: '', fcKey: '', jinaKey: '', deep: true, freeMem: true, sttMode: 'auto', voiceEngine: 'jarvis', voiceFx: 'ia' },
+    { noBrain: false, voiceName: '', pitch: 0.8, rate: 1.05, silence: 1.6, model: 'padrao', city: '', fcKey: '', jinaKey: '', deep: true, freeMem: true, sttMode: 'auto', voiceEngine: 'jarvis', voiceFx: 'ia' },
     (() => { try { return JSON.parse(store.get('jarvis-local-settings', '{}')); } catch (e) { return {}; } })()
   );
   const saveSettings = () => store.set('jarvis-local-settings', JSON.stringify(settings));
@@ -711,7 +727,7 @@ async function handle({ id, type, text, tok }) {
       const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR';
       const v = chosenVoice(); if (v) u.voice = v; u.pitch = settings.pitch; u.rate = settings.rate;
       let done = false; const end = () => { if (!done) { done = true; resolve(); } };
-      u.onend = end; u.onerror = end; currentUtter = u; synth.speak(u);
+      u.onend = end; u.onerror = end; synth.speak(u);
       setTimeout(end, 4000 + text.length * 110);
     });
   }
@@ -729,8 +745,8 @@ async function handle({ id, type, text, tok }) {
       playing = true;
       const job = jobs.shift();
       let buf = null;
-      try { const m = await job.p; buf = await c.decodeAudioData(m.buf); }
-      catch (e) { if (!/liberado|cancelado/.test(String(e && e.message))) jarvisVoiceBroken = true; }
+      try { const m = await Promise.race([job.p, new Promise((_, r) => setTimeout(() => r(new Error('voz demorou')), IDLE_T.voice || 20000))]); buf = await c.decodeAudioData(m.buf); }
+      catch (e) { const em = String(e && e.message); if (!/liberado|cancelado/.test(em)) jarvisVoiceBroken = true; if (/demorou/.test(em)) releaseTts(); }
       if (token !== speakToken || !active) { finish(); return; }
       if (!buf) { await speakPhone(job.text); return playNext(); }
       const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = neuralRate(); src.connect(fx.input);
@@ -758,7 +774,11 @@ async function handle({ id, type, text, tok }) {
     try {
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) return (gpuInfo = { ok: false, why: 'A placa de vídeo do celular não ficou disponível para o navegador. Atualize o Chrome e tente de novo.' });
-      return (gpuInfo = { ok: true, f16: adapter.features.has('shader-f16') });
+      let info = adapter.info || null;
+      if (!info && adapter.requestAdapterInfo) { try { info = await adapter.requestAdapterInfo(); } catch (e) {} }
+      const name = info ? [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(' ').toLowerCase() : '';
+      const adreno = /qualcomm|adreno/.test(name);   // Snapdragon: a versão rápida (f16) costuma travar ou embaralhar
+      return (gpuInfo = { ok: true, f16: adapter.features.has('shader-f16') && !adreno, name });
     } catch (e) { return (gpuInfo = { ok: false, why: 'Não consegui acessar a placa de vídeo do celular.' }); }
   }
   const useF16 = () => !!(gpuInfo && gpuInfo.f16 && !settings.forceF32);
@@ -816,7 +836,7 @@ async function handle({ id, type, text, tok }) {
       const progress = r => {
         last = Date.now(); gotProgress = true;
         const p = typeof r.progress === 'number' ? r.progress : 0; loadPct = p; loadingFromNet = !inCache;
-        showLoader(true, inCache ? 'Carregando o cérebro: ' + Math.round(p * 100) + '%'
+        showLoader(true, inCache ? 'Ligando o cérebro: ' + Math.round(p * 100) + '% (a tela pode parar alguns segundos)'
           : 'Baixando o cérebro: ' + Math.round(p * 100) + '% (' + Math.round(p * mb) + ' de ' + mb + ' MB). Deixe o app aberto.', p);
       };
       const finish = (ok, val) => {
@@ -854,8 +874,9 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       if (!g.ok) throw Object.assign(new Error(g.why), { friendly: g.why });
       if (window.__JARVIS_TEST_ENGINE) { engine = window.__JARVIS_TEST_ENGINE; loadedName = 'teste'; return engine; }
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
-      showLoader(true, 'Preparando o cérebro…', 0);
+      showLoader(true, 'Ligando o cérebro… a tela pode parar alguns segundos, é normal.', 0);
       const w = await getWebLLM();
+      watchFreezes(true);
       const run = async () => {
         const cached = await cachedChoice();
         const order = cached ? [cached, ...MODELS[settings.model].tries.filter(t => t !== cached)] : MODELS[settings.model].tries;
@@ -883,6 +904,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
           }
           if (engine) {
             loadedName = base; cachedMemo = null; loadingFromNet = false;
+            if (!useF16() && !window.__JARVIS_FAKE_WEBLLM) setTimeout(() => MODELS[settings.model].tries.forEach(([b]) => modelInCache(b + '-q4f16_1-MLC').then(has => { if (has) w.deleteModelAllInfoInCache(b + '-q4f16_1-MLC').catch(() => {}); })), 20000);
             showLoader(false);
             touchEngine();
             // Aquece o cérebro em segundo plano: a primeira resposta de verdade sai mais rápida
@@ -906,6 +928,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       };
       return run();
     })();
+    loadingPromise.then(() => watchFreezes(false), () => watchFreezes(false));
     return loadingPromise.catch(e => { loadingPromise = null; engine = null; showLoader(false); throw e; });
   }
 
@@ -958,11 +981,12 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const stalled = new Promise((_, rej) => { dog = setInterval(() => { if (Date.now() - last > GEN_STALL) rej(hungError()); }, 1000); });
     stalled.catch(() => {});
     const race = p => Promise.race([p, stalled]);
+    watchFreezes(true);
     try { return await generateInner(messages, opts, race, () => { last = Date.now(); }); }
     catch (e) {
       if (e && e.hung) { try { engine && engine.interruptGenerate(); } catch (err) {} dropEngine(true); }
       throw e;
-    } finally { clearInterval(dog); }
+    } finally { clearInterval(dog); watchFreezes(false); }
   }
   async function generateInner(messages, opts, race, tick) {
     if (warmup) await race(warmup);
@@ -1000,6 +1024,46 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const out = stripThink(((r.choices || [])[0] || {}).message ? r.choices[0].message.content : '');
     if (looksBroken(out, false, opts.foreign)) throw brokenError();
     return out;
+  }
+
+  // ----- Detector de travadas: mede se a tela parou enquanto o cérebro trabalhava -----
+  let freezeWatch = null, freezeMax = 0;
+  function watchFreezes(on) {
+    if (on) store.set('jarvis-cerebro-ocupado', String(Date.now())); else store.set('jarvis-cerebro-ocupado', '');
+    if (on) {
+      if (freezeWatch) return;
+      freezeMax = 0; let last = performance.now();
+      const loop = t => { if (!freezeWatch) return; if (!document.hidden) freezeMax = Math.max(freezeMax, t - last); last = t; freezeWatch = requestAnimationFrame(loop); };
+      freezeWatch = requestAnimationFrame(loop);
+      document.addEventListener('visibilitychange', freezeReset);
+    } else if (freezeWatch) {
+      cancelAnimationFrame(freezeWatch); freezeWatch = null;
+      document.removeEventListener('visibilitychange', freezeReset);
+      const worst = freezeMax; freezeMax = 0;
+      if (worst > (IDLE_T.freeze || 4000)) onFreeze(worst);
+    }
+  }
+  function freezeReset() { freezeMax = 0; }           // saiu do app: não conta como travada
+  let freezeOffered = false;
+  function onFreeze(ms) {
+    const n = Number(store.get('jarvis-travadas', '0')) + 1; store.set('jarvis-travadas', String(n));
+    if (freezeOffered) return; freezeOffered = true;
+    const secs = Math.round(ms / 1000);
+    const m = addMsg('sys', settings.model !== 'leve'
+      ? 'Percebi que a tela ficou parada uns ' + secs + ' segundos enquanto eu pensava. O cérebro está pesado para este celular. O tamanho Leve é bem mais rápido.'
+      : 'Percebi que a tela ficou parada uns ' + secs + ' segundos enquanto eu pensava. Se isso atrapalhar, use o modo rápido: eu respondo pesquisando na internet, sem travar.');
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap';
+    const btn = (label, fn) => { const b = document.createElement('button'); b.className = 'retry'; b.style.margin = '10px 0 2px'; b.textContent = label; b.onclick = () => { row.remove(); fn(); }; row.appendChild(b); };
+    if (settings.model !== 'leve') btn('USAR O LEVE', async () => {
+      settings.model = 'leve'; saveSettings(); try { localStorage.setItem('jarvis-model-chosen', '1'); } catch (e) {} cachedMemo = null;
+      await dropEngine(false); addMsg('sys', 'Combinado. Na próxima pergunta eu preparo o cérebro Leve (420 MB, só uma vez).');
+    });
+    btn('MODO RÁPIDO', async () => {
+      settings.noBrain = true; saveSettings(); await dropEngine(false);
+      addMsg('sys', 'Modo rápido ligado: respondo pesquisando na internet, sem usar o cérebro do celular. Para voltar, toque na engrenagem ⚙ e marque "Usar o cérebro do celular".');
+    });
+    btn('DEIXAR ASSIM', () => {});
+    m.appendChild(row);
   }
 
   // ================= DECIDIR o que fazer =================
@@ -1259,18 +1323,18 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       const best = web.find(x => !/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|facebook\.com|x\.com|twitter\.com|\.pdf$/i.test(x.url));
       if (best) {
         onStep && onStep('Lendo ' + host(best.url) + '…');
-        try { page = { ...best, body: relevant(await readPage(best.url), q + ' ' + query, 1300) }; } catch (e) { page = null; }
+        try { page = { ...best, body: relevant(await readPage(best.url), q + ' ' + query, 900) }; } catch (e) { page = null; }
       }
     }
     // Material curto e denso: é o que mais pesa no tempo de resposta do celular
-    let budget = 2800; const parts = [], sources = [];
+    let budget = 1700; const parts = [], sources = [];   // material curto: o celular pensa mais rápido e não trava
     const add = (it, body) => {
       if (budget < 120 || !body) return;
       const line = (it.title + ' (' + host(it.url) + '): ' + body).slice(0, budget);
       parts.push('- ' + line); budget -= line.length; sources.push({ url: it.url, title: it.title });
     };
     if (page) add(page, page.body);
-    items.forEach(it => { if (!page || it.url !== page.url) add(it, relevant(it.text, q + ' ' + query, 450)); });
+    items.forEach(it => { if (!page || it.url !== page.url) add(it, relevant(it.text, q + ' ' + query, 350)); });
     return { text: parts.join('\n'), sources, failed: !parts.length };
   }
 
@@ -1370,7 +1434,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
   const memoryLine = q => {
     const pick = pickMemories(q || '');
-    return pick.length ? '\nO que você sabe sobre o usuário (ele mesmo contou): ' + short(pick.map(m => m.text).join('; '), 700) + '.' : '';
+    return pick.length ? '\nO que você sabe sobre o usuário (ele mesmo contou): ' + short(pick.map(m => m.text).join('; '), 450) + '.' : '';
   };
   const userName = () => { const m = memories.find(x => x.cat === 'nome'); return m ? m.text.replace(/^meu nome é /i, '').split(' ')[0] : ''; };
 
@@ -1710,6 +1774,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       if (/^(obrigad|valeu|brigad)/.test(n)) return 'Disponha, senhor.';
       if (/^(tudo bem|tudo bom|como vai)/.test(n)) return 'Tudo em ordem por aqui, senhor. Em que posso ajudar?';
       if (SMALLTALK_RE.test(n)) return 'Às suas ordens, senhor. Em que posso ajudar?';
+      if (settings.noBrain) return 'No modo rápido eu não consigo fazer isso, senhor. Para piadas, histórias e conversas, marque "Usar o cérebro do celular" na engrenagem.';
       return 'Para isso eu preciso do meu cérebro, senhor, e ele ainda está ' + (loadingFromNet ? 'baixando (' + Math.round(loadPct * 100) + '%)' : 'ligando') + '. Pergunte de novo em instantes.';
     }
     if (!/^MATERIAL \(consultado agora\)/.test(material)) {
@@ -1737,7 +1802,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   const short = (t, n) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t);
   function buildMessages(q, material, withHistory) {
     const msgs = [{ role: 'system', content: SYSTEM }];
-    if (withHistory) history.slice(-2).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 200) }); msgs.push({ role: 'assistant', content: short(h.a, 350) }); });
+    if (withHistory) history.slice(-1).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 160) }); msgs.push({ role: 'assistant', content: short(h.a, 260) }); });
     msgs.push({ role: 'user', content: contextLine(q) + (material ? '\n' + material : '') + '\n\nPergunta: ' + q });
     return msgs;
   }
@@ -1757,7 +1822,6 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       u.lang = 'pt-BR'; const v = chosenVoice(); if (v) u.voice = v;
       u.pitch = settings.pitch; u.rate = settings.rate; u.volume = 1;
       u.onend = u.onerror = () => { if (current === me) { current = null; playNext(); } };
-      currentUtter = u;
       synth.speak(u);
     };
     const watch = setInterval(() => {
@@ -1832,7 +1896,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const myTurn = ++turnId;
     addMsg('user', q);
     const bubble = addMsg('jarvis', '…');
-    let reply = '', sources = [], speaker = null;
+    let reply = '', sources = [], speaker = null, failed = false;
     try {
       let plan = route(q);
       if (['pesquisar', 'clima', 'cotacao', 'ler'].includes(plan.acao)) lastPlan = plan;
@@ -1844,9 +1908,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         setJarvisText(bubble, local.reply);
         if (local.share) addShareButton(bubble, local.share);
         if (local.action) {
-          const btn = addActionButton(bubble, local.action);
+          addActionButton(bubble, local.action);
           if (local.tryOpen) { try { window.open(local.action.url, '_blank', 'noopener'); } catch (e) {} }
-          btn.addEventListener('click', () => {});
         }
         history.push({ q, a: local.reply }); if (history.length > 8) history = history.slice(-8); saveHistory();
         saveEpisode(q, local.reply, plan.acao);
@@ -1858,8 +1921,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       }
 
       // Cérebro pronto? Se ainda estiver baixando (ou o celular não tiver placa compatível), responde rápido sem ele
-      let useBrain = !!engine;
-      if (!engine) {
+      let useBrain = !!engine && !settings.noBrain;
+      if (!engine && !settings.noBrain) {
         const g = await detectGPU();
         if (g.ok) {
           if (!loadingPromise && await isCached()) loadEngine().catch(() => {});
@@ -1870,11 +1933,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
           }
         }
         if (myTurn !== turnId) { bubble.remove(); return; }
-        if (!useBrain && plan.acao === 'responder' && navigator.onLine && !SMALLTALK_RE.test(norm(q)) && !CREATIVE_RE.test(norm(q)))
+      }
+      if (!useBrain) {
+        if (plan.acao === 'responder' && navigator.onLine && !SMALLTALK_RE.test(norm(q)) && !CREATIVE_RE.test(norm(q)))
           plan = { acao: 'pesquisar', consulta: cleanQuery(q) || q };     // sem cérebro: pesquisa e lê a resposta
       }
       if (useBrain) touchEngine();
-      setPhase('thinking'); hint(useBrain ? '' : 'Resposta rápida: o cérebro ainda está carregando.');
+      setPhase('thinking'); hint(useBrain ? '' : settings.noBrain ? 'Modo rápido.' : 'Resposta rápida: o cérebro ainda está carregando.');
 
       let material = '';
       if (plan.acao === 'conta') {
@@ -1950,16 +2015,18 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         reply = 'Faltou memória no celular durante a resposta, senhor. Reiniciei o cérebro' + (settings.model === 'leve' ? ' no tamanho Leve' : '') + '. Pode perguntar de novo.';
       }
       else reply = engineErrorText(e);
-      sources = [];
+      sources = []; failed = true;
       speaker = newSpeaker(); speaker.push(reply);
     }
     if (myTurn !== turnId || !active) return;
     setJarvisText(bubble, reply);
     addSources(bubble, sources);
-    history.push({ q, a: reply });
-    if (history.length > 8) history = history.slice(-8);
-    saveHistory();
-    saveEpisode(q, reply);
+    if (!failed) {
+      history.push({ q, a: reply });
+      if (history.length > 8) history = history.slice(-8);
+      saveHistory();
+      saveEpisode(q, reply);
+    }
     if (speaker) await speaker.close();
     if (!active || myTurn !== turnId) return;
     if (mode === 'voice') startListening();
@@ -2026,7 +2093,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
   // ================= FALAR =================
   const synth = window.speechSynthesis || null;
-  let voices = [], currentUtter = null, speakToken = 0;
+  let voices = [], speakToken = 0;
   function loadVoices() {
     if (!synth) return;
     voices = synth.getVoices();
@@ -2096,6 +2163,15 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   let welcomeLater = Date.now() - Number(store.get('jarvis-depois', '0')) < 864e5;               // tocou em "Depois": o Jarvis funciona no modo rápido sem ficar pedindo
   $('#welcomeLater').onclick = () => { welcomeLater = true; store.set('jarvis-depois', String(Date.now())); $('#welcome').classList.remove('open'); addMsg('sys', 'Tudo bem. Enquanto isso eu respondo no modo rápido, pesquisando na internet. Quando quiser me deixar inteligente e funcionando sem internet, toque na engrenagem ⚙ e em PREPARAR AGORA.'); };
 
+  // Espera um download, mas desiste se ele ficar parado (sem progresso) por muito tempo
+  function untilStalled(start, ms = 120000) {
+    if (IDLE_T.step) ms = Math.min(ms, IDLE_T.step);
+    return new Promise((resolve, reject) => {
+      let last = Date.now(), done = false;
+      const dog = setInterval(() => { if (!done && Date.now() - last > ms) { done = true; clearInterval(dog); reject(new Error('download parado')); } }, 3000);
+      start(() => { last = Date.now(); }).then(v => { if (!done) { done = true; clearInterval(dog); resolve(v); } }, e => { if (!done) { done = true; clearInterval(dog); reject(e); } });
+    });
+  }
   // Baixa o cérebro e a voz offline, testa os dois, e avisa quando está pronto
   async function prepareAll() {
     if (!navigator.onLine) { addMsg('sys', 'Conecte-se à internet (de preferência Wi‑Fi) para preparar o Jarvis. Só precisa uma vez.'); return; }
@@ -2130,18 +2206,18 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     }
     let voiceOk = false;
     try {
-      await ensureStt((frac, mb) => showLoader(true, 'Passo 2 de 3: baixando o ouvido offline: ' + Math.round(frac * 100) + '%', frac));
+      await untilStalled(tick => ensureStt((frac, mb) => { tick(); showLoader(true, 'Passo 2 de 3: baixando o ouvido offline: ' + Math.round(frac * 100) + '%', frac); }));
       showLoader(true, 'Passo 2 de 3: testando o ouvido offline…', 1);
-      await sttCall('transcribe', new Float32Array(16000));
+      await untilStalled(() => sttCall('transcribe', new Float32Array(16000)), 90000);
       voiceOk = true;
       releaseStt();
-    } catch (e) { voiceOk = false; }
+    } catch (e) { voiceOk = false; releaseStt(); }
     try {
       showLoader(true, 'Passo 3 de 3: baixando a voz do Jarvis…', 0);
-      await ensureJarvisVoice(frac => showLoader(true, 'Passo 3 de 3: baixando a voz do Jarvis: ' + Math.round(frac * 100) + '%', frac));
+      await untilStalled(tick => ensureJarvisVoice(frac => { tick(); showLoader(true, 'Passo 3 de 3: baixando a voz do Jarvis: ' + Math.round(frac * 100) + '%', frac); }));
       showLoader(true, 'Passo 3 de 3: testando a voz do Jarvis…', 1);
-      await ttsCall('speak', 'Pronto.');
-    } catch (e) { jarvisVoiceReady = false; }
+      await untilStalled(() => ttsCall('speak', 'Pronto.'), 60000);
+    } catch (e) { jarvisVoiceReady = false; releaseTts(); }
     showLoader(false); if (!active) { setPhase('off'); hint(''); keepAwake(false); }
     addMsg('sys', voiceOk
       ? 'Pronto! O Jarvis está preparado e funciona com ou sem internet. Toque no núcleo e fale.'
@@ -2153,7 +2229,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   $('#core').addEventListener('click', async () => {
     if (active && (phase === 'tap' || phase === 'typing')) { unlockSpeech(); startListening(); return; }
     if (active) { stopAll(); return; }
-    if (!engine && !loadingPromise) {
+    if (!engine && !loadingPromise && !settings.noBrain) {
       if (!(await isCached())) { if (!welcomeLater) { openWelcome(); return; } }
       else loadEngine().catch(() => {});
     }
@@ -2169,7 +2245,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const inp = $('#typeInput'); const q = inp.value.trim();
     if (!q) return;
     if (['thinking', 'searching', 'loading'].includes(phase) && active) { turnId++; try { engine && engine.interruptGenerate(); } catch (err) {} }   // pergunta nova: deixa a anterior
-    if (!engine && !loadingPromise && !welcomeLater && !(await isCached())) { openWelcome(); return; }
+    if (!engine && !loadingPromise && !welcomeLater && !settings.noBrain && !(await isCached())) { openWelcome(); return; }
     inp.value = '';
     killRecognizer();
     speakToken++; ttsCancel(speakToken); try { synth && synth.cancel(); } catch (err) {} try { currentNeural && currentNeural.stop(); } catch (err) {}
@@ -2195,7 +2271,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   const ps = $('#pitchSel'), rs = $('#rateSel'), ss = $('#silenceSel'), ms = $('#modelSel'), vs = $('#voiceSel'), cs = $('#cityInput'), fk = $('#fcKey'), jk = $('#jinaKey'), ds = $('#deepSel'), fs = $('#freeSel');
   function refreshSettingsUI() {
     ps.value = settings.pitch; rs.value = settings.rate; ss.value = settings.silence; cs.value = settings.city || '';
-    fk.value = settings.fcKey || ''; jk.value = settings.jinaKey || ''; ds.checked = !!settings.deep; fs.checked = !!settings.freeMem;
+    fk.value = settings.fcKey || ''; jk.value = settings.jinaKey || ''; ds.checked = !!settings.deep; fs.checked = !!settings.freeMem; $('#brainSel').checked = !settings.noBrain;
     fillModelSelect(ms);
     $('#pitchVal').textContent = Number(settings.pitch).toFixed(2);
     $('#rateVal').textContent = Number(settings.rate).toFixed(2);
@@ -2212,6 +2288,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   jk.onchange = () => { settings.jinaKey = jk.value.trim(); saveSettings(); cache.clear(); };
   ds.onchange = () => { settings.deep = ds.checked; saveSettings(); };
   fs.onchange = () => { settings.freeMem = fs.checked; saveSettings(); };
+  $('#brainSel').onchange = async () => { settings.noBrain = !$('#brainSel').checked; saveSettings(); if (settings.noBrain) await dropEngine(false); };
   ms.onchange = async () => {
     if (ms.value === settings.model) return;
     try { localStorage.setItem('jarvis-model-chosen', '1'); } catch (e) {}
@@ -2363,7 +2440,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
   };
 
-  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
+  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { recoverFromFreeze, ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
 
   // ================= Início =================
   // Atualizou? Avisa uma vez: "Atualização concluída com sucesso"
@@ -2420,13 +2497,26 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   if (!window.isSecureContext) addMsg('sys', 'Abra esta página por um endereço https:// para o microfone e o modo offline funcionarem.');
   jarvisVoiceDownloaded().then(v => { if (v) jarvisVoiceOnPhone = true; });   // só confere; a voz liga no primeiro toque
   const whenIdle = fn => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 2500 }) : setTimeout(fn, 1200));
+  // O app foi fechado com o cérebro travado? Ajusta um passo para ficar mais leve e estável
+  async function recoverFromFreeze() {
+    const t = Number(store.get('jarvis-cerebro-ocupado', '') || 0);
+    if (!t) return;
+    store.set('jarvis-cerebro-ocupado', '');
+    if (Date.now() - t > 6 * 3600 * 1000) return;                   // muito antigo: ignora
+    const g = await detectGPU();
+    let what;
+    if (g.ok && g.f16 && !settings.forceF32) { settings.forceF32 = true; what = 'troquei para a versão do cérebro compatível com a sua placa de vídeo'; }
+    else if (settings.model !== 'leve') { settings.model = settings.model === 'forte' ? 'padrao' : 'leve'; try { localStorage.setItem('jarvis-model-chosen', '1'); } catch (e) {} what = 'troquei para um cérebro menor e mais leve'; }
+    else if (!settings.noBrain) { settings.noBrain = true; what = 'liguei o modo rápido (respondo pesquisando na internet, sem usar o cérebro do celular)'; }
+    else return;
+    saveSettings(); cachedMemo = null;
+    addMsg('sys', 'Da última vez o Jarvis travou enquanto pensava e precisou ser fechado. Para não acontecer de novo, ' + what + '.' + (settings.noBrain ? ' Para voltar, toque na engrenagem ⚙ e marque "Usar o cérebro do celular".' : ' Na próxima pergunta eu preparo essa versão (só uma vez).'));
+  }
   // O cérebro liga só quando você usa (tocar no núcleo ou na caixa de texto): nada pesado acontece "do nada"
   whenIdle(async () => {
+    await recoverFromFreeze();
     if (window.__JARVIS_TEST_ENGINE) return;
-    if (!(await isCached()) && !welcomeLater) openWelcome();
-  });
-  $('#typeInput').addEventListener('focus', () => {
-    if (!engine && !loadingPromise) isCached().then(c => { if (c && !engine && !loadingPromise) loadEngine().catch(() => {}); });
+    if (!settings.noBrain && !(await isCached()) && !welcomeLater) openWelcome();
   });
 </script>
 </body>
