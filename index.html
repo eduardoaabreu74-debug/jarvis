@@ -104,6 +104,13 @@
   #installBar[hidden]{display:none}
   #installBar span{flex:1;line-height:1.35}
   #installBar button{background:var(--cyan);color:#012;border:none;border-radius:10px;padding:9px 14px;font:700 13px var(--hud);letter-spacing:.12em;cursor:pointer}
+  .msg.jarvis .src a.actbtn{background:var(--cyan);color:#012;font-weight:700;font-size:14px;padding:8px 16px;border:none}
+  details.memlist summary{cursor:pointer;color:var(--cyan2);font-size:13.5px;padding:4px 0}
+  #memItems{margin-top:8px;max-height:260px;overflow-y:auto}
+  .memitem{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .memitem span{flex:1;line-height:1.35}
+  .memitem small{color:var(--dim);font-size:11px}
+  .memitem button{flex:0 0 auto!important;width:32px;height:32px;padding:0!important;border-radius:8px!important;color:#ffb3b3!important}
   .chip{font-family:var(--hud);font-size:10.5px;letter-spacing:.16em;padding:2px 7px;border-radius:99px;border:1px solid rgba(77,255,154,.45);color:var(--ok);margin-left:4px}
   .chip.off{border-color:rgba(255,180,84,.5);color:var(--warn)}
   .sec{font-family:var(--hud);letter-spacing:.2em;color:var(--cyan);font-size:13px;margin:18px 0 10px;border-top:1px solid var(--line);padding-top:14px}
@@ -187,8 +194,20 @@
       <h2>CONFIGURAÇÕES</h2>
       <div id="offlineStatus" class="ready">Verificando…</div>
       <div class="row">
-        <label for="voiceSel">Voz do Jarvis</label>
-        <select id="voiceSel"></select>
+        <label for="engineSel">Voz</label>
+        <select id="engineSel">
+          <option value="jarvis">Jarvis (voz neural, recomendada)</option>
+          <option value="celular">Voz do celular</option>
+        </select>
+        <div class="note" id="jarvisVoiceNote"></div>
+        <div class="btns" style="margin-top:8px"><button id="jarvisVoiceDl" style="display:none">BAIXAR VOZ DO JARVIS (63 MB)</button></div>
+      </div>
+      <div class="row">
+        <label for="fxSel">Efeito</label>
+        <select id="fxSel">
+          <option value="ia">Assistente de IA (grave, com eco de sala de comando)</option>
+          <option value="natural">Natural (sem efeito)</option>
+        </select>
       </div>
       <div class="row">
         <label for="pitchSel">Tom da voz (mais grave ← → mais agudo)<span id="pitchVal" hidden></span></label>
@@ -202,6 +221,14 @@
         <label for="cityInput">Sua cidade (para o clima)</label>
         <input type="text" id="cityInput" placeholder="Ex.: Salvador">
       </div>
+      <div class="sec" style="margin-top:6px">MEMÓRIA</div>
+      <div class="note" id="memSummary" style="margin-bottom:8px"></div>
+      <details class="memlist"><summary>Ver o que o Jarvis sabe sobre você</summary><div id="memItems"></div></details>
+      <div class="btns" style="margin:10px 0 14px">
+        <button id="memBackup">FAZER BACKUP</button>
+        <button id="memRestore">RESTAURAR</button>
+        <input type="file" id="memFile" accept="application/json,.json" hidden>
+      </div>
       <div class="btns" style="margin-bottom:12px">
         <button id="testVoice">OUVIR A VOZ</button>
         <button id="clearChat">LIMPAR CONVERSA</button>
@@ -210,6 +237,10 @@
       <details class="adv">
         <summary>Avançado</summary>
         <div class="row" style="margin-top:12px">
+          <label for="voiceSel">Voz do celular (quando usada)</label>
+          <select id="voiceSel"></select>
+        </div>
+        <div class="row">
           <label for="modelSel">Tamanho do cérebro</label>
           <select id="modelSel"></select>
           <div class="note">Escolhido automaticamente. Troque só se ficar lento (use Leve) ou se quiser mais inteligência (Forte).</div>
@@ -227,7 +258,7 @@
           </select>
         </div>
         <div class="row"><label class="check"><input type="checkbox" id="deepSel"> Ler as páginas encontradas na pesquisa</label></div>
-        <div class="row"><label class="check"><input type="checkbox" id="freeSel"> Liberar memória quando sair do app</label></div>
+        <div class="row"><label class="check"><input type="checkbox" id="freeSel"> Economizar memória (desliga o que estiver parado)</label><div class="note">A voz sai da memória depois de 4 minutos sem falar, o ouvido offline depois de 90 segundos, e o cérebro depois de 10 minutos sem perguntas ou 3 minutos fora do app. Tudo volta sozinho quando precisar.</div></div>
         <div class="row">
           <label for="fcKey">Chave do Firecrawl (opcional)</label>
           <input type="password" id="fcKey" placeholder="Pode deixar vazio" autocomplete="off" spellcheck="false">
@@ -242,6 +273,8 @@
         </div>
         <div class="note" id="sttNote"></div>
         <div id="diag"></div>
+        <div class="btns" style="margin-top:10px"><button class="danger" id="clearMemory">APAGAR MEMÓRIA</button></div>
+        <div class="note" id="memNote"></div>
         <div class="btns" style="margin-top:10px"><button class="danger" id="deleteModel">APAGAR CÉREBRO DO CELULAR</button></div>
       </details>
 
@@ -261,7 +294,7 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
   const settings = Object.assign(
-    { voiceName: '', pitch: 0.8, rate: 1.05, silence: 1.6, model: 'padrao', city: '', fcKey: '', jinaKey: '', deep: true, freeMem: true, sttMode: 'auto' },
+    { voiceName: '', pitch: 0.8, rate: 1.05, silence: 1.6, model: 'padrao', city: '', fcKey: '', jinaKey: '', deep: true, freeMem: true, sttMode: 'auto', voiceEngine: 'jarvis', voiceFx: 'ia' },
     (() => { try { return JSON.parse(store.get('jarvis-local-settings', '{}')); } catch (e) { return {}; } })()
   );
   const saveSettings = () => store.set('jarvis-local-settings', JSON.stringify(settings));
@@ -314,7 +347,9 @@
       const b = document.createElement('span'); b.className = 'body'; b.textContent = text;
       d.append(w, b);
     } else d.textContent = text;
-    log.appendChild(d); log.scrollTop = log.scrollHeight;
+    log.appendChild(d);
+    const all = log.querySelectorAll('.msg'); for (let i = 0; i < all.length - 80; i++) all[i].remove();   // tela leve: últimas 80 mensagens
+    log.scrollTop = log.scrollHeight;
     return d;
   }
   function setJarvisText(el, text) { el.querySelector('.body').textContent = text; log.scrollTop = log.scrollHeight; }
@@ -347,7 +382,7 @@
     online = navigator.onLine;
     const c = $('#netChip'); c.textContent = online ? 'ONLINE' : 'OFFLINE'; c.classList.toggle('off', !online);
   }
-  window.addEventListener('online', updateNet);
+  window.addEventListener('online', () => { updateNet(); if (settings.sttMode === 'auto') releaseStt(); });
   window.addEventListener('offline', updateNet);
   // ================= VOZ SEM INTERNET (Whisper no celular) =================
   const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js';
@@ -386,6 +421,33 @@ self.onmessage = async e => {
     }
   } catch (err) { self.postMessage({ id, type: 'error', message: String((err && err.message) || err) }); }
 };`;
+  // ----- Gerente de memória: cada parte pesada se desliga sozinha quando fica parada -----
+  const idleTimers = {};
+  function idleRelease(name, ms, fn) {           // reinicia o relógio de "parado" daquela parte
+    clearTimeout(idleTimers[name]);
+    if (ms != null) idleTimers[name] = setTimeout(fn, ms);
+  }
+  function releaseStt() {                        // ouvido offline (Whisper): só fica na memória enquanto está em uso
+    clearTimeout(idleTimers.stt);
+    if (stt) { try { stt.terminate(); } catch (e) {} stt = null; }
+    sttPending.forEach(h => h.reject(new Error('liberado'))); sttPending.clear();
+    sttReady = false;
+  }
+  function releaseTts() {                        // voz do Jarvis: sai da memória quando ninguém fala por um tempo
+    clearTimeout(idleTimers.tts);
+    if (ttsW) { try { ttsW.terminate(); } catch (e) {} ttsW = null; }
+    ttsPend.forEach(h => h.reject(new Error('liberado'))); ttsPend.clear();
+    jarvisVoiceReady = false;
+  }
+  async function releaseEngine() {               // cérebro: o mais pesado
+    clearTimeout(idleTimers.engine);
+    if (!engine || engine === window.__JARVIS_TEST_ENGINE || active) { if (engine && active) touchEngine(); return; }
+    const e = engine; engine = null; loadingPromise = null; warmup = null;
+    try { await e.unload(); } catch (err) {}
+  }
+  const IDLE_T = window.__JARVIS_IDLE || {};   // (só os testes mudam estes tempos)
+  const STT_IDLE = IDLE_T.stt || 90 * 1000, TTS_IDLE = IDLE_T.tts || 4 * 60 * 1000, ENGINE_IDLE = IDLE_T.engine || 10 * 60 * 1000;
+  const touchEngine = () => { if (settings.freeMem) idleRelease('engine', ENGINE_IDLE, releaseEngine); };
   let stt = null, sttReady = false, sttSeq = 0;
   const sttPending = new Map();
   function sttCall(type, payload, onProgress) {
@@ -401,10 +463,11 @@ self.onmessage = async e => {
       stt.onerror = e => { sttPending.forEach(h => h.reject(new Error('voz offline indisponível'))); sttPending.clear(); stt = null; };
     }
     const id = ++sttSeq;
+    idleRelease('stt', null);
     return new Promise((resolve, reject) => {
       sttPending.set(id, { resolve, reject, onProgress });
       stt.postMessage({ id, type, audio: payload }, payload ? [payload.buffer] : []);
-    });
+    }).finally(() => { if (!sttPending.size) idleRelease('stt', STT_IDLE, releaseStt); });
   }
   async function sttIsDownloaded() {
     if (window.__JARVIS_TEST_STT) return !!window.__JARVIS_TEST_STT_READY;
@@ -435,7 +498,7 @@ self.onmessage = async e => {
     const calib = [];
     return new Promise(resolve => {
       let done = false;
-      const finish = reason => {
+      let finish = reason => {
         if (done) return; done = true; recorder = null;
         try { proc.disconnect(); src.disconnect(); } catch (e) {}
         stream.getTracks().forEach(t => t.stop());
@@ -450,6 +513,9 @@ self.onmessage = async e => {
         resolve({ reason, audio, speechMs });
       };
       recorder = { cancel: () => finish('cancel') };
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const guard = setTimeout(() => finish(started && speechMs > 250 ? 'ok' : 'nospeech'), 30000);   // segurança: nunca trava
+      const _f = finish; finish = r => { clearTimeout(guard); _f(r); };
       proc.onaudioprocess = e => {
         if (done) return;
         const d = e.inputBuffer.getChannelData(0);
@@ -501,6 +567,168 @@ self.onmessage = async e => {
     }
   }
 
+  // ================= VOZ DO JARVIS (neural, roda no celular) =================
+  // Voz masculina em português (Piper "faber") + efeito de assistente de IA. Funciona sem internet depois de baixada.
+  const PIPER_URL = 'https://cdn.jsdelivr.net/npm/@mintplex-labs/piper-tts-web@1.0.5/+esm';
+  const ORT_WASM = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
+  const PHONEMIZE = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize';
+  const JARVIS_VOICE = 'pt_BR-faber-medium';
+  const TTS_WORKER_CODE = `
+import * as piper from '${PIPER_URL}';
+let session = null;
+async function getSession(onProgress) {
+  if (session) return session;
+  session = await piper.TtsSession.create({
+    voiceId: '${JARVIS_VOICE}',
+    progress: p => { if (p && p.total && String(p.url || '').endsWith('.onnx')) onProgress && onProgress(p.loaded / p.total); },
+    wasmPaths: { onnxWasm: '${ORT_WASM}', piperData: '${PHONEMIZE}.data', piperWasm: '${PHONEMIZE}.wasm' }
+  });
+  return session;
+}
+// Uma frase de cada vez: o motor da voz não aceita duas ao mesmo tempo
+let queue = Promise.resolve();
+self.onmessage = e => { queue = queue.then(() => handle(e.data || {})); };
+async function handle({ id, type, text }) {
+  try {
+    if (type === 'load') { await getSession(f => self.postMessage({ id, type: 'progress', frac: f })); self.postMessage({ id, type: 'ready' }); }
+    else if (type === 'speak') {
+      const s = await getSession();
+      const wav = await s.predict(text);
+      const buf = await wav.arrayBuffer();
+      self.postMessage({ id, type: 'audio', buf }, [buf]);
+    }
+  } catch (err) { session = null; self.postMessage({ id, type: 'error', message: String((err && err.message) || err) }); }
+}`;
+  let ttsW = null, ttsSeq = 0, jarvisVoiceReady = false, jarvisVoiceBroken = false, jarvisVoiceOnPhone = false;
+  const ttsPend = new Map();
+  function ttsCall(type, text, onProgress) {
+    if (window.__JARVIS_TEST_TTS) return window.__JARVIS_TEST_TTS(type, text, onProgress);
+    if (!ttsW) {
+      ttsW = new Worker(URL.createObjectURL(new Blob([TTS_WORKER_CODE], { type: 'text/javascript' })), { type: 'module' });
+      ttsW.onmessage = e => {
+        const m = e.data, h = ttsPend.get(m.id); if (!h) return;
+        if (m.type === 'progress') { h.onProgress && h.onProgress(m.frac); return; }
+        ttsPend.delete(m.id);
+        if (m.type === 'error') h.reject(new Error(m.message)); else h.resolve(m);
+      };
+      ttsW.onerror = () => { ttsPend.forEach(h => h.reject(new Error('voz do Jarvis indisponível'))); ttsPend.clear(); ttsW = null; };
+    }
+    const id = ++ttsSeq;
+    idleRelease('tts', null);
+    return new Promise((resolve, reject) => { ttsPend.set(id, { resolve, reject, onProgress }); ttsW.postMessage({ id, type, text }); })
+      .finally(() => { if (!ttsPend.size) idleRelease('tts', TTS_IDLE, releaseTts); });
+  }
+  async function jarvisVoiceDownloaded() {
+    if (window.__JARVIS_TEST_TTS) return !!window.__JARVIS_TEST_TTS_READY;
+    try {
+      const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('piper');
+      for await (const name of dir.keys()) if (name === JARVIS_VOICE + '.onnx') return true;
+    } catch (e) {}
+    return false;
+  }
+  async function ensureJarvisVoice(onProgress) {
+    await ttsCall('load', null, onProgress);
+    jarvisVoiceReady = true; jarvisVoiceOnPhone = true; jarvisVoiceBroken = false;   // baixada: pode usar mesmo depois de sair da memória
+  }
+  // Já baixada no celular = pode usar na hora (o motor liga sozinho na primeira frase)
+  const useJarvisVoice = () => settings.voiceEngine === 'jarvis' && (jarvisVoiceReady || jarvisVoiceOnPhone) && !jarvisVoiceBroken;
+
+  // Efeito de assistente de IA: graves encorpados, presença, compressão, eco curto e sala de comando
+  let actx = null, fx = null, currentNeural = null, audioSleep = null;
+  function suspendAudio(now) {
+    clearTimeout(audioSleep);
+    const go = () => { if (actx && actx.state === 'running' && !currentNeural) actx.suspend().catch(() => {}); };
+    if (now) go(); else audioSleep = setTimeout(go, 3000);
+  }
+  function audioCtx() {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      actx = new AC(); buildFx();
+    }
+    clearTimeout(audioSleep);
+    if (actx.state === 'suspended') actx.resume().catch(() => {});
+    return actx;
+  }
+  function makeImpulse(c, seconds, decay) {
+    const len = Math.floor(c.sampleRate * seconds), b = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+    return b;
+  }
+  function buildFx() {
+    const c = actx;
+    const low = c.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 180;
+    const pres = c.createBiquadFilter(); pres.type = 'peaking'; pres.frequency.value = 2800; pres.Q.value = 0.9;
+    const air = c.createBiquadFilter(); air.type = 'highshelf'; air.frequency.value = 7000;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -22; comp.ratio.value = 3; comp.attack.value = 0.004; comp.release.value = 0.15;
+    const dry = c.createGain(); dry.gain.value = 1;
+    const conv = c.createConvolver(); conv.buffer = makeImpulse(c, 0.9, 2.8);
+    const wet = c.createGain();
+    const dly = c.createDelay(0.05); dly.delayTime.value = 0.013;
+    const dlyG = c.createGain();
+    const lfo = c.createOscillator(), lfoG = c.createGain(); lfo.frequency.value = 0.4; lfoG.gain.value = 0.002; lfo.connect(lfoG).connect(dly.delayTime); lfo.start();
+    const out = c.createGain(); out.gain.value = 0.92;
+    low.connect(pres).connect(air).connect(comp);
+    comp.connect(dry).connect(out);
+    comp.connect(conv).connect(wet).connect(out);
+    comp.connect(dly).connect(dlyG).connect(out);
+    out.connect(c.destination);
+    fx = { input: low, low, pres, air, wet, dlyG };
+    applyFx();
+  }
+  function applyFx() {
+    if (!fx) return;
+    const ia = settings.voiceFx !== 'natural';
+    fx.low.gain.value = ia ? 4.5 : 0; fx.pres.gain.value = ia ? 2.5 : 0; fx.air.gain.value = ia ? 2 : 0;
+    fx.wet.gain.value = ia ? 0.14 : 0; fx.dlyG.gain.value = ia ? 0.2 : 0;
+  }
+  // Tom e velocidade: mais grave e calmo no efeito de IA
+  const neuralRate = () => Math.max(0.8, Math.min(1.3, (settings.voiceFx === 'natural' ? 1 : 0.84 + (settings.pitch - 0.5) * 0.3) * Math.sqrt(settings.rate)));
+
+  function speakPhone(text) {   // reserva: a voz do celular, para um trecho
+    return new Promise(resolve => {
+      if (!synth) return resolve();
+      const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR';
+      const v = chosenVoice(); if (v) u.voice = v; u.pitch = settings.pitch; u.rate = settings.rate;
+      let done = false; const end = () => { if (!done) { done = true; resolve(); } };
+      u.onend = end; u.onerror = end; currentUtter = u; synth.speak(u);
+      setTimeout(end, 4000 + text.length * 110);
+    });
+  }
+
+  // Mesmo jeito de usar do falante do celular: push(texto) e close()
+  function makeNeuralSpeaker() {
+    const token = ++speakToken;
+    const c = audioCtx();
+    let jobs = [], playing = false, closed = false, finished = false, started = false;
+    let resolveDone; const done = new Promise(r => { resolveDone = r; });
+    const finish = () => { if (finished) return; finished = true; resolveDone(); suspendAudio(); };
+    const playNext = async () => {
+      if (token !== speakToken || !active) { finish(); return; }
+      if (!jobs.length) { playing = false; if (closed) finish(); return; }
+      playing = true;
+      const job = jobs.shift();
+      let buf = null;
+      try { const m = await job.p; buf = await c.decodeAudioData(m.buf); }
+      catch (e) { if (!/liberado/.test(String(e && e.message))) jarvisVoiceBroken = true; }
+      if (token !== speakToken || !active) { finish(); return; }
+      if (!buf) { await speakPhone(job.text); return playNext(); }
+      const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = neuralRate(); src.connect(fx.input);
+      currentNeural = src;
+      src.onended = () => { if (currentNeural === src) { currentNeural = null; playNext(); } };
+      src.start();
+    };
+    return {
+      push(text) {
+        const parts = chunk(cleanForSpeech(text), 140, true); if (!parts.length) return;
+        if (!started) { started = true; try { synth && synth.cancel(); } catch (e) {} setPhase('speaking'); }
+        parts.forEach(t => { const p = ttsCall('speak', t); p.catch(() => {}); jobs.push({ text: t, p }); });
+        if (!playing) playNext();
+      },
+      close() { closed = true; if (!playing) finish(); return done; }
+    };
+  }
+  const newSpeaker = () => (useJarvisVoice() ? makeNeuralSpeaker() : makeSpeaker());
+
   // ================= CÉREBRO LOCAL (WebLLM + WebGPU) =================
   async function detectGPU() {
     if (gpuInfo) return gpuInfo;
@@ -512,17 +740,27 @@ self.onmessage = async e => {
       return (gpuInfo = { ok: true, f16: adapter.features.has('shader-f16') });
     } catch (e) { return (gpuInfo = { ok: false, why: 'Não consegui acessar a placa de vídeo do celular.' }); }
   }
-  const idFor = base => base + (gpuInfo && gpuInfo.f16 ? '-q4f16_1-MLC' : '-q4f32_1-MLC');
+  const useF16 = () => !!(gpuInfo && gpuInfo.f16 && !settings.forceF32);
+  const idFor = base => base + (useF16() ? '-q4f16_1-MLC' : '-q4f32_1-MLC');
   async function getWebLLM() { if (!webllm) webllm = await import(WEBLLM_URL); return webllm; }
 
   // Qual versão deste tamanho já está guardada no celular (se alguma estiver)
+  // Confere direto no armazenamento do navegador, do mesmo jeito que a biblioteca faz
+  async function modelInCache(id) {
+    try {
+      const base = 'https://huggingface.co/mlc-ai/' + id + '/resolve/main/';
+      const c = await caches.open('webllm/model');
+      const idx = await c.match(base + 'tensor-cache.json');
+      if (!idx) return false;
+      const recs = ((await idx.clone().json()) || {}).records || [];
+      for (const r of recs) if (!(await c.match(new URL(r.dataPath, base).href))) return false;
+      return recs.length > 0;
+    } catch (e) { return false; }
+  }
   async function cachedChoice(key) {
     if (window.__JARVIS_TEST_ENGINE) return MODELS[key || settings.model].tries[0];
     const g = await detectGPU(); if (!g.ok) return null;
-    try {
-      const w = await getWebLLM();
-      for (const t of MODELS[key || settings.model].tries) if (await w.hasModelInCache(idFor(t[0]))) return t;
-    } catch (e) {}
+    for (const t of MODELS[key || settings.model].tries) if (await modelInCache(idFor(t[0]))) return t;
     return null;
   }
   const isCached = async () => !!(await cachedChoice());
@@ -533,8 +771,8 @@ self.onmessage = async e => {
     if (engine) return Promise.resolve(engine);
     if (loadingPromise) return loadingPromise;
     loadingPromise = (async () => {
-      if (window.__JARVIS_TEST_ENGINE) { engine = window.__JARVIS_TEST_ENGINE; loadedName = 'teste'; return engine; }
       const g = await detectGPU();
+      if (window.__JARVIS_TEST_ENGINE) { engine = window.__JARVIS_TEST_ENGINE; loadedName = 'teste'; return engine; }
       if (!g.ok) throw Object.assign(new Error(g.why), { friendly: g.why });
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
       showLoader(true, 'Preparando o cérebro…', 0);
@@ -544,7 +782,7 @@ self.onmessage = async e => {
       let lastErr = null;
       for (const [base, mb] of order) {
         const id = idFor(base);
-        const inCache = await w.hasModelInCache(id).catch(() => false);
+        const inCache = await modelInCache(id);
         const progress = r => {
           const p = typeof r.progress === 'number' ? r.progress : 0;
           showLoader(true, inCache ? 'Carregando o cérebro: ' + Math.round(p * 100) + '%'
@@ -563,8 +801,11 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
             : await w.CreateMLCEngine(id, { initProgressCallback: progress }, CHAT_OPTS);
           loadedName = base;
           showLoader(false);
+          touchEngine();
           // Aquece o cérebro em segundo plano: a primeira resposta de verdade sai mais rápida
-          warmup = engine.chat.completions.create({ messages: [{ role: 'user', content: 'oi' }], max_tokens: 1, extra_body: { enable_thinking: false } })
+          warmupBroken = false;
+          warmup = engine.chat.completions.create({ messages: [{ role: 'user', content: 'Responda apenas com a palavra: pronto' }], max_tokens: 6, temperature: 0, extra_body: { enable_thinking: false } })
+            .then(r => { if (looksBroken(stripThink(r.choices[0].message.content), true)) warmupBroken = true; })
             .catch(() => {}).finally(() => { warmup = null; });
           return engine;
         } catch (e) {
@@ -577,8 +818,21 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     return loadingPromise.catch(e => { loadingPromise = null; engine = null; showLoader(false); throw e; });
   }
 
+  async function fixBrokenBrain() {
+    const wasF16 = useF16(), oldId = loadedName && loadedName !== 'teste' ? idFor(loadedName) : null;
+    const e = engine; engine = null; loadingPromise = null; warmup = null; warmupBroken = false;
+    try { e && e !== window.__JARVIS_TEST_ENGINE && await e.unload(); } catch (err) {}
+    if (window.__JARVIS_TEST_ENGINE) engine = null;
+    if (wasF16) {
+      settings.forceF32 = true; saveSettings();
+      try { const w = await getWebLLM(); if (oldId && w.deleteModelAllInfoInCache) await w.deleteModelAllInfoInCache(oldId); } catch (err) {}
+      return 'Desculpe, senhor. O cérebro estava falando coisas sem sentido neste celular. Já troquei para uma versão compatível com a sua placa de vídeo. Na próxima pergunta, toque em baixar para eu buscar essa versão (só uma vez).';
+    }
+    return 'Desculpe, senhor. O cérebro está falando coisas sem sentido neste celular. Escolha o tamanho Leve nas Configurações e tente de novo.';
+  }
   function engineErrorText(e) {
     if (e && e.friendly) return e.friendly;
+    if (e && e.broken) return 'O cérebro respondeu coisas sem sentido neste celular. Escolha o tamanho Leve nas Configurações e tente de novo.';
     const m = String(e && (e.message || e) || '').toLowerCase();
     if (m.includes('shader-f16')) return 'Seu celular não suporta essa versão do cérebro. Tente o tamanho Leve.';
     if (/memory|oom|device.?lost|buffer/.test(m)) return 'Faltou memória no celular para esse cérebro. Feche outros apps ou escolha um tamanho menor nas configurações.';
@@ -587,10 +841,26 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     return 'Não consegui ligar o cérebro (' + (e && e.message || e) + ').';
   }
 
+  // Resposta embaralhada? (acontece em algumas placas de vídeo de celular: sai símbolo e letra de outra língua)
+  const OK_CHAR = /[\p{Script=Latin}\p{N}\s.,!?;:'"()%°ºª$€+=\-–—…\/@&*#_<>\[\]{}|~^`]/u;
+  const PT_COMMON = new Set('o a os as de do da dos das e um uma que em no na nos nas para pra por com nao se senhor mais como mas eu voce ele ela isso esse essa este esta sao foi ser tem pode muito bem sim ja ou ao aos seu sua hoje'.split(' '));
+  function looksBroken(t, strict, foreign) {
+    t = String(t || '').trim(); if (!t || foreign) return false;   // pediu outra língua: letras diferentes são normais
+    const chars = [...t.replace(/\s/g, '')]; if (!chars.length) return false;
+    const bad = chars.filter(c => !OK_CHAR.test(c)).length;
+    if (strict ? bad > 0 : (bad >= 4 && bad / chars.length > 0.3)) return true;
+    const words = norm(t).match(/[a-z]+/g) || [];
+    if (words.length >= 12 && words.filter(w => PT_COMMON.has(w)).length / words.length < 0.04) return true;
+    if (chars.length >= 30 && chars.filter(c => /[^\p{L}\p{N}\s]/u.test(c)).length / chars.length > 0.35) return true;   // quase só símbolo
+    return false;
+  }
+  const brokenError = () => Object.assign(new Error('resposta embaralhada'), { broken: true });
+  let warmupBroken = false;
   const stripThink = t => String(t || '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
 
   async function generate(messages, opts = {}) {
     if (warmup) await warmup;
+    if (warmupBroken) throw brokenError();
     const req = {
       messages,
       temperature: opts.temperature ?? 0.7,
@@ -606,12 +876,19 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       for await (const ch of chunks) {
         if (opts.turn !== undefined && opts.turn !== turnId) break;
         txt += (ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content) || '';
-        opts.onText(stripThink(txt));
+        const clean = stripThink(txt);
+        if (looksBroken(clean, false, opts.foreign)) { try { engine.interruptGenerate(); } catch (e) {} throw brokenError(); }
+        if (clean.length >= 30) opts.onText(clean);          // só mostra/fala depois de conferir o começo
       }
-      return stripThink(txt);
+      const out = stripThink(txt);
+      if (looksBroken(out, false, opts.foreign)) throw brokenError();
+      opts.onText(out);
+      return out;
     }
     const r = await engine.chat.completions.create(req);
-    return stripThink(r.choices[0].message.content);
+    const out = stripThink(r.choices[0].message.content);
+    if (looksBroken(out, false, opts.foreign)) throw brokenError();
+    return out;
   }
 
   // ================= DECIDIR o que fazer =================
@@ -672,8 +949,29 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const words = n.split(/\s+/).filter(Boolean).length;
     const math = tryMath(q);
     if (math) return { acao: 'conta', math };
+    const exact = tryConvert(q) || tryDates(q);
+    if (exact) return { acao: 'exato', calc: exact };
+    const tm = planTimer(n, q); if (tm) return tm;
+    const cal = planCalendar(q, n); if (cal) return cal;
+    if (/\b(liga|ligue|ligar|acende|acenda|acender|ativa|ative)\b.*\blanterna\b/.test(n)) return { acao: 'lanterna', on: true };
+    if (/\b(desliga|desligue|desligar|apaga|apague|apagar|desativa)\b.*\blanterna\b/.test(n)) return { acao: 'lanterna', on: false };
+    if (/\b(bateria|carga do celular)\b/.test(n) && words <= 10) return { acao: 'bateria' };
+    if (/\b(compartilh|manda isso|envia isso|enviar isso)\w*\b/.test(n) && /\b(isso|resposta|ultima|essa|esse)\b/.test(n)) return { acao: 'compartilhar' };
+    const act = planAction(q); if (act) return act;
+    let mm;
+    const askingBack = /\?\s*$/.test(q) || /^(?:jarvis[,!. ]*)?(?:voce )?(?:lembra|lembre|se lembra)(?:-se)?\s+(?:de mim|o que|do que|quando|quem|qual|quais|como|onde|se\b|daquel|da vez|disso$|dele|dela)/.test(n);
+    if (!askingBack && (mm = q.match(/^\s*(?:jarvis[,!. ]*)?(?:lembre|lembra|lembre-se|guarde|guarda|anote|anota|memorize|grave|salve)(?:\s+(?:que|de que|disso|isso|aí|ai))?:?\s+(.{3,})$/i))) return { acao: 'lembrar', fato: mm[1] };
+    // Frase que só conta algo sobre você ("meu time é o Bahia", "eu moro em Salvador"): anota na hora
+    if (!QUESTION_RE.test(n)) { const facts = extractFacts(q); if (facts.length) return { acao: 'lembrar_auto', facts }; }
+    if (/\b(o que|sobre o que|do que|quais assuntos)\b.*\b(conversamos|falamos|conversei|falei|perguntei|a gente conversou|a gente falou)\b/.test(n)) return { acao: 'recordar' };
+    if (/^(?:jarvis[, ]*)?(?:esqueca|esquece)\b/.test(n) || (/^(?:jarvis[, ]*)?(?:apague|apaga|delete|remova|limpe|limpa)\b/.test(n) && /(memoria|lembr|sobre mim|que eu|tudo|anotac|\bmeu\b|\bminha\b)/.test(n))) {
+      mm = q.match(/(?:esque[cç]a|esquece|apague|apaga|remova)\s+(?:que\s+|de que\s+|o que\s+)?(.+)$/i);
+      const what = mm ? mm[1] : 'tudo';
+      return { acao: 'esquecer', what: /tudo|toda|todas|memoria/.test(norm(what)) ? 'tudo' : what };
+    }
+    if (/(o que voce (sabe|lembra)( sobre| de) mim|do que voce (se )?lembra( de mim| sobre mim)?$|quais (sao )?(as )?minhas (memorias|anotacoes)|o que (eu )?(te )?pedi (para|pra) (voce )?lembrar|o que voce anotou|voce (me )?conhece|quem sou eu)/.test(n)) return { acao: 'memorias' };
     if (words <= 6 && SMALLTALK_RE.test(n)) return { acao: 'responder' };
-    if (TIME_RE.test(n)) return { acao: 'responder' };
+    if (TIME_RE.test(n)) return { acao: 'hora' };
 
     const follow = lastPlan && words <= 8 && (FOLLOW_RE.test(n) || PRONOUN_RE.test(n));
     if (follow && lastPlan.acao === 'clima' && !CURRENCY_RE.test(n)) return { acao: 'clima', cidade: extractCity(q) || lastPlan.cidade };
@@ -702,7 +1000,9 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   async function cached(key, fn, ttl = 10 * 60 * 1000) {
     const hit = cache.get(key);
     if (hit && Date.now() - hit.t < ttl) return hit.v;
-    const v = await fn(); cache.set(key, { t: Date.now(), v }); return v;
+    const v = await fn(); cache.set(key, { t: Date.now(), v });
+    if (cache.size > 40) cache.delete(cache.keys().next().value);   // guarda só as 40 pesquisas mais recentes
+    return v;
   }
 
   // Busca na web inteira (Firecrawl, aceita chamadas do navegador)
@@ -720,15 +1020,15 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     });
   }
 
-  function searchWikipedia(q) {
-    return cached('wiki:' + q, async () => {
-      const s = await getJSON('https://pt.wikipedia.org/w/api.php?action=query&list=search&srlimit=2&format=json&origin=*&srsearch=' + enc(q));
+  function searchWikipedia(q, lang = 'pt') {
+    return cached('wiki:' + lang + ':' + q, async () => {
+      const s = await getJSON('https://' + lang + '.wikipedia.org/w/api.php?action=query&list=search&srlimit=2&format=json&origin=*&srsearch=' + enc(q));
       const ids = ((s.query && s.query.search) || []).map(x => x.pageid);
       if (!ids.length) return [];
-      const e = await getJSON('https://pt.wikipedia.org/w/api.php?action=query&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exchars=900&format=json&origin=*&pageids=' + ids.join('|'));
+      const e = await getJSON('https://' + lang + '.wikipedia.org/w/api.php?action=query&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exchars=900&format=json&origin=*&pageids=' + ids.join('|'));
       const pages = (e.query && e.query.pages) || {};
       return ids.map(id => pages[id]).filter(Boolean).map(p => ({
-        title: p.title, url: p.fullurl || ('https://pt.wikipedia.org/?curid=' + p.pageid), text: (p.extract || '').trim()
+        title: p.title, url: p.fullurl || ('https://' + lang + '.wikipedia.org/?curid=' + p.pageid), text: (p.extract || '').trim()
       })).filter(x => x.text);
     });
   }
@@ -824,9 +1124,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
   // Pesquisa completa: busca na web + Wikipédia, e (se ligado) lê as melhores páginas
   async function runSearch(q, plan, onStep) {
-    const query = plan.consulta || q;
-    const [webR, wikiR] = await Promise.allSettled([searchWeb(query), searchWikipedia(query)]);
-    const web = webR.status === 'fulfilled' ? webR.value : [], wiki = wikiR.status === 'fulfilled' ? wikiR.value : [];
+    let query = plan.consulta || q;
+    // Perguntas sobre agora: põe o ano na busca para vir o mais recente
+    if (/\b(hoje|agora|atual|atualmente|ultim|noticia|recente|esta semana|este mes|ontem|amanha)/.test(norm(q)) && !/\b20\d\d\b/.test(query)) query += ' ' + new Date().getFullYear();
+    const [webR, wikiR] = await Promise.allSettled([searchWeb(query), searchWikipedia(plan.consulta || q)]);
+    const web = webR.status === 'fulfilled' ? webR.value : [];
+    let wiki = wikiR.status === 'fulfilled' ? wikiR.value : [];
+    if (!web.length && !wiki.length) { try { wiki = await searchWikipedia(plan.consulta || q, 'en'); } catch (e) {} }
     const seen = new Set();
     const items = web.concat(wiki).filter(x => !seen.has(x.url) && seen.add(x.url));
     if (!items.length) return { text: '', sources: [], failed: true };
@@ -852,18 +1156,442 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     return { text: parts.join('\n'), sources, failed: !parts.length };
   }
 
+  // ================= MEMÓRIA DO JARVIS (fica só neste celular) =================
+  // Cada lembrança: { id, text, cat, t, n }  — cat = assunto fixo (nome, cidade, time...): um novo valor substitui o antigo
+  const MEM_KEY = 'jarvis-memoria2', MEM_MAX = 200;
+  let memories = (() => {
+    try {
+      const v2 = JSON.parse(store.get(MEM_KEY, 'null'));
+      if (Array.isArray(v2)) return v2;
+      const old = JSON.parse(store.get('jarvis-memoria', '[]')) || [];   // versão antiga: só textos
+      return old.map((text, i) => ({ id: Date.now() + i, text, cat: null, t: Date.now(), n: 0 }));
+    } catch (e) { return []; }
+  })();
+  let memSaveTimer = null;
+  function saveMemories(now) {
+    clearTimeout(memSaveTimer);
+    const go = () => { store.set(MEM_KEY, JSON.stringify(memories.slice(-MEM_MAX))); try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} };
+    if (now === false) memSaveTimer = setTimeout(go, 2000); else go();
+  }
+
+  // Assuntos que só têm um valor (o mais novo vale) e como reconhecer cada um numa frase
+  const FACTS = [
+    { cat: 'nome', re: /\b(?:meu nome (?:e|eh)|me chamo|pode me chamar de)\s+([a-z]+(?: (?:de |da |do |dos )?[a-z]+){0,3})\b/, fmt: v => 'meu nome é ' + v, name: true, stop: /^(que|um|uma|muito|bem|senhor|voce|isso)$/ },
+    { cat: 'nome', re: /^(?:jarvis[,!. ]*)?(?:oi|ola)?[,!. ]*eu sou (?:o|a)\s+([a-z]+(?: (?:de |da |do |dos )?[a-z]+){0,2})[.!]*$/, fmt: v => 'meu nome é ' + v, name: true, proper: true },
+    { cat: 'cidade', re: /\beu moro (?:em|no|na|nos|nas)\s+([a-z][a-z ]{2,40}?)(?:\s+(?:e|mas|com|ha|desde)\b|[,.!?]|$)/, fmt: v => 'eu moro em ' + v },
+    { cat: 'idade', re: /\beu tenho (\d{1,3}) anos\b/, fmt: v => 'eu tenho ' + v + ' anos' },
+    { cat: 'aniversario', re: /\bmeu aniversario (?:e|eh|cai|e no|e em)\s+(?:dia\s+|no dia\s+)?(.{3,30}?)(?:[,.!?]|$)/, fmt: v => 'meu aniversário é ' + v },
+    { cat: 'trabalho', re: /\beu trabalho (como|de|na|no|em|com)\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: (v, m) => 'eu trabalho ' + m[1] + ' ' + v, group: 2 },
+    { cat: 'estudo', re: /\beu estudo\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu estudo ' + v },
+    { cat: 'time', re: /\b(?:meu time (?:e|eh)(?: o| a)?|eu torco (?:pro|pra|para o|para a|pelo|pela))\s+([a-z][a-z ]{1,30}?)(?:[,.!?]|$)/, fmt: v => 'meu time é o ' + v },
+    { cat: 'fav', re: /\b(?:minha|meu) (\w+(?: \w+)?) (?:favorit[oa]|preferid[oa]) (?:e|eh)(?: o| a)?\s+(.{2,40}?)(?:[,.!?]|$)/, fmt: (v, m, q, o) => (/a$/.test(m[1]) ? 'minha ' : 'meu ') + o(m[1]) + (/a$/.test(m[1]) ? ' favorita é ' : ' favorito é ') + v, key: m => 'fav:' + m[1], group: 2 },
+    { cat: 'familia', re: /\b(?:minha|meu) (mae|pai|esposa|marido|mulher|namorada|namorado|noiva|noivo|filho|filha|irmao|irma|avo|tio|tia|primo|prima|cachorro|cachorra|gato|gata|amigo|amiga|chefe|professor|professora)\s+(?:se chama|chama|e o|e a|eh o|eh a|tem o nome de)\s+([a-z]+(?: [a-z]+)?)/, fmt: (v, m, q, o) => (/^(mae|esposa|mulher|namorada|noiva|filha|irma|tia|prima|cachorra|gata|amiga|professora)$/.test(m[1]) ? 'minha ' : 'meu ') + o(m[1]) + ' se chama ' + v, key: m => 'fam:' + m[1], group: 2 },
+    { cat: null, re: /\beu (?:gosto muito de|gosto de|adoro|amo)\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu gosto de ' + v },
+    { cat: null, re: /\beu (?:nao gosto de|odeio|detesto)\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu não gosto de ' + v },
+    { cat: null, re: /\beu sou alergic[oa] (?:a|ao|a)\s+(.{3,40}?)(?:[,.!?]|$)/, fmt: v => 'eu sou alérgico a ' + v },
+    { cat: null, re: /\beu (?:sou vegetarian[oa]|sou vegan[oa]|nao como carne)\b()/, fmt: (v, m, q) => norm(q).includes('vegan') ? 'eu sou vegano' : 'eu sou vegetariano' }
+  ];
+  // Procura fatos sobre você numa frase qualquer
+  function extractFacts(q) {
+    const n = norm(q), out = [];
+    for (const f of FACTS) {
+      const m = n.match(f.re); if (!m) continue;
+      const g = f.group || 1;
+      let v = (m[g] || '').trim();
+      v = v.split(f.name ? /\s+(?:e|mas|eu|que|tambem|ne|moro|tenho|sou)\b/ : /\s+(?:e|mas)\s+(?:eu|meu|minha|meus|minhas|tenho|moro|sou|trabalho|estudo|gosto|nao|tambem)\b/)[0].replace(/\s+(?:e|mas|tambem|ne)$/, '').trim();
+      if (f.stop && f.stop.test(v.split(' ')[0])) continue;
+      const vOrig = v ? orig(q, v) : v;
+      if (f.proper && !/^[A-ZÁÂÃÉÊÍÓÔÕÚÇ]/.test(vOrig)) continue;     // "eu sou o Eduardo" sim, "eu sou o melhor" não
+      if (out.some(o => o.cat === (f.key ? f.key(m) : f.cat))) continue;
+      out.push({ cat: f.key ? f.key(m) : f.cat, text: f.fmt(vOrig, m, q, x => orig(q, x) || x) });
+    }
+    return out;
+  }
+  function remember(fact, cat) {
+    let text = fact.replace(/^[\s:,-]+|[.!\s]+$/g, '').slice(0, 180);
+    if (text.length < 3) return false;
+    if (cat === undefined) { const f = extractFacts(text)[0]; cat = f ? f.cat : null; }
+    const n = norm(text);
+    memories = memories.filter(m => norm(m.text) !== n && !(cat && m.cat === cat));   // mesmo assunto: troca pelo novo
+    memories.push({ id: Date.now() + Math.random(), text, cat, t: Date.now(), n: 0 });
+    if (cat === 'cidade') { settings.city = text.replace(/^eu moro (em|no|na|nos|nas) /i, '').replace(/(^|\s)\S/g, c => c.toUpperCase()).replace(/ (De|Da|Do|Dos|Das) /g, w => w.toLowerCase()); saveSettings(); }   // vira a cidade do clima
+    if (memories.length > MEM_MAX) memories = memories.slice(-MEM_MAX);
+    saveMemories(); return true;
+  }
+  const CAT_WORDS = { nome: /\bnome\b/, cidade: /\b(cidade|moro|endereco)\b/, idade: /\bidade\b/, aniversario: /\baniversario\b/, trabalho: /\b(trabalho|emprego|profissao)\b/, estudo: /\b(estudo|faculdade|escola|curso)\b/, time: /\btime\b/ };
+  function forget(what) {
+    if (!what || /^(tudo|todas?|toda a memoria|todas as memorias|o que voce sabe( sobre mim)?)$/.test(norm(what))) { const k = memories.length; memories = []; saveMemories(); return k; }
+    const nw = norm(what), before = memories.length;
+    const cats = Object.keys(CAT_WORDS).filter(c => CAT_WORDS[c].test(nw));
+    const kw = cats.length ? [] : keywords(what).filter(k => !/^(meu|minha|meus|minhas|eu|mim|que|sobre|isso|disso|aquilo)$/.test(k));
+    if (!cats.length && !kw.length) return 0;
+    memories = memories.filter(m => {
+      if (m.cat && cats.includes(m.cat.split(':')[0])) return false;
+      if (m.cat && m.cat.includes(':') && nw.includes(m.cat.split(':')[1])) return false;
+      const n = norm(m.text); return !kw.length || kw.filter(k => n.includes(k)).length < Math.max(1, Math.ceil(kw.length / 2));
+    });
+    saveMemories(); return before - memories.length;
+  }
+  // Escolhe só o que importa para esta pergunta (o básico sempre vai junto) — memória grande sem pesar no cérebro
+  const CORE = ['nome', 'cidade', 'idade', 'trabalho', 'estudo'];
+  function pickMemories(q, max = 8) {
+    if (!memories.length) return [];
+    if (memories.reduce((a, m) => a + m.text.length + 2, 0) <= 500) return memories.slice();   // pouca coisa: vai tudo
+    const kw = keywords(q), personal = /\b(eu|meu|minha|meus|minhas|mim|comigo|me)\b/.test(norm(q));
+    const core = memories.filter(m => CORE.includes(m.cat));
+    const rest = memories.filter(m => !CORE.includes(m.cat)).map(m => {
+      const n = norm(m.text); let s = 0;
+      kw.forEach(k => { if (n.includes(k)) s += 2; });
+      if (personal && /^(eu|meu|minha|meus|minhas) /i.test(m.text)) s += 0.5;   // pergunta pessoal: gostos, família, alergias contam
+      s += Math.max(0, 1 - (Date.now() - m.t) / (60 * 864e5)) * 0.3 + Math.min(m.n, 10) * 0.05;   // um pouco de peso para o recente e o mais usado
+      return { m, s };
+    }).filter(x => x.s >= 0.5).sort((a, b) => b.s - a.s).slice(0, Math.max(0, max - core.length)).map(x => x.m);
+    const pick = core.concat(rest);
+    rest.forEach(m => { m.n = (m.n || 0) + 1; }); if (rest.length) saveMemories(false);
+    return pick;
+  }
+  const memoryLine = q => {
+    const pick = pickMemories(q || '');
+    return pick.length ? '\nO que você sabe sobre o usuário (ele mesmo contou): ' + short(pick.map(m => m.text).join('; '), 700) + '.' : '';
+  };
+  const userName = () => { const m = memories.find(x => x.cat === 'nome'); return m ? m.text.replace(/^meu nome é /i, '').split(' ')[0] : ''; };
+
+  // ----- Lembrança de conversas: o Jarvis guarda o resumo de cada conversa e lembra quando o assunto volta -----
+  const EP_KEY = 'jarvis-episodios', EP_MAX = 300;
+  let episodes = (() => { try { return JSON.parse(store.get(EP_KEY, '[]')) || []; } catch (e) { return []; } })();
+  function saveEpisode(q, a, kind) {
+    if (!q || /^(hora|bateria|lanterna|timer_cancelar|timer_listar|compartilhar|memorias|esquecer)$/.test(kind || '')) return;
+    episodes.push({ t: Date.now(), q: short(q, 140), a: short(a.replace(/\s+/g, ' '), 220) });
+    if (episodes.length > EP_MAX) episodes = episodes.slice(-EP_MAX);
+    store.set(EP_KEY, JSON.stringify(episodes));
+  }
+  const RECALL_RE = /\b(lembra|lembrar|aquela vez|te perguntei|eu perguntei|falamos|conversamos|voce disse|voce falou|me disse|me falou|da outra vez|ultima vez)\b/;
+  // Conversas antigas que têm a ver com a pergunta (fora as que já estão na conversa atual)
+  function relatedEpisodes(q, max = 2) {
+    if (!episodes.length) return [];
+    const kw = keywords(q); if (!kw.length) return [];
+    const recall = RECALL_RE.test(norm(q));
+    const recent = new Set(history.map(h => short(h.q, 140)));
+    return episodes.filter(e => !recent.has(e.q)).map(e => {
+      const n = norm(e.q + ' ' + e.a); let s = 0; kw.forEach(k => { if (n.includes(k)) s++; });
+      return { e, s };
+    }).filter(x => x.s >= (recall ? 1 : 2)).sort((a, b) => b.s - a.s || b.e.t - a.e.t).slice(0, max).map(x => x.e);
+  }
+  const epDate = t => { const d = new Date(t), today = new Date(), y = new Date(); y.setDate(today.getDate() - 1); return d.toDateString() === today.toDateString() ? 'hoje' : d.toDateString() === y.toDateString() ? 'ontem' : d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }); };
+  // "O que conversamos ontem?" -> assuntos daquele dia
+  function recallByDay(n) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let from, to, label;
+    if (/\bontem\b/.test(n)) { from = today.getTime() - 864e5; to = today.getTime(); label = 'Ontem'; }
+    else if (/\b(semana passada|essa semana|esta semana|ultimos dias)\b/.test(n)) { from = today.getTime() - 7 * 864e5; to = Date.now(); label = 'Nos últimos dias'; }
+    else if (/\b(antes|ultima vez|da outra vez)\b/.test(n)) { const prev = episodes.filter(e => e.t < today.getTime()); if (!prev.length) return 'Antes de hoje nós ainda não tínhamos conversado, senhor.'; const last = new Date(prev[prev.length - 1].t); last.setHours(0, 0, 0, 0); from = last.getTime(); to = from + 864e5; label = 'Da última vez (' + epDate(from) + ')'; }
+    else { from = today.getTime(); to = Date.now(); label = 'Hoje'; }
+    const list = episodes.filter(e => e.t >= from && e.t < to);
+    if (!list.length) return label === 'Hoje' ? 'Ainda não conversamos sobre nada hoje, senhor.' : label + ' não conversamos, senhor.';
+    const topics = [...new Set(list.map(e => e.q.replace(/^jarvis[,!. ]*/i, '').replace(/[?!.]+$/, '')))].slice(-6);
+    return label + ' o senhor falou comigo sobre: ' + topics.join('; ') + '.';
+  }
+
+  // Conversa recente: o Jarvis lembra do que vocês falaram nas últimas 12 horas
+  function loadHistory() {
+    try {
+      const h = JSON.parse(store.get('jarvis-historico', '{}'));
+      if (h && h.t && Date.now() - h.t < 12 * 3600 * 1000 && Array.isArray(h.items)) return h.items.slice(-6);
+    } catch (e) {}
+    return [];
+  }
+  const saveHistory = () => store.set('jarvis-historico', JSON.stringify({ t: Date.now(), items: history.slice(-6) }));
+
+  // ================= AÇÕES NO CELULAR =================
+  // O celular só deixa abrir apps com um toque seu, então o Jarvis mostra um botão (e tenta abrir direto quando pode)
+  // Recupera do texto original (com acentos e maiúsculas) um trecho achado no texto normalizado
+  function orig(q, part) {
+    const map = []; let acc = '';
+    for (let i = 0; i < q.length; i++) { const c = norm(q[i]); for (let k = 0; k < c.length; k++) map.push(i); acc += c; }
+    const at = acc.lastIndexOf(part); if (at < 0 || !part) return part;
+    return q.slice(map[at], map[at + part.length - 1] + 1);
+  }
+  function planAction(q) {
+    const n = norm(q).replace(/^jarvis[,!. ]*/, '');
+    let m;
+    const O = x => orig(q, x);
+    if ((m = n.match(/^(?:toca|tocar|toque|coloca|colocar|coloque|poe|ponha|bota|abre|abrir|abra|procura|pesquisa|busca)\s+(?:a |o |uma |um )?(?:musica |video |clipe |cancao )?(.+?)\s+no youtube$/)) ||
+        (m = n.match(/^(?:toca|tocar|toque|coloca|coloque|poe|ponha|bota)\s+(?:a |o |uma |um )?(?:musica|video|clipe|cancao)\s+(.+)$/)))
+      return { acao: 'abrir', nome: 'o YouTube', alvo: O(m[1]), url: 'https://www.youtube.com/results?search_query=' + enc(O(m[1])) };
+    if ((m = n.match(/^(?:como (?:eu )?(?:chego|chegar|vou) (?:a|ao|na|no|em|ate|para|pra)|rota (?:para|pra|ate)|me leva (?:para|pra|ate|ao|a)|navega(?:r)? (?:para|pra|ate)|abre o mapa (?:de|do|da)|mostra no mapa)\s+(.+)$/)))
+      return { acao: 'abrir', nome: 'o mapa', alvo: O(m[1]), url: 'https://www.google.com/maps/search/?api=1&query=' + enc(O(m[1])) };
+    if ((m = n.match(/^(?:pesquisa|pesquise|procura|procure|busca|busque)\s+no google\s+(?:sobre |por )?(.+)$/)) || (m = n.match(/^(?:pesquisa|pesquise|procura|busca)\s+(.+?)\s+no google$/)))
+      return { acao: 'abrir', nome: 'o Google', alvo: O(m[1]), url: 'https://www.google.com/search?q=' + enc(O(m[1])) };
+    if ((m = n.match(/^(?:manda|mande|envia|envie|escreve|escreva)\s+(?:uma )?mensagem\s+(?:no |pelo )?whats(?:app|ap|zap)?(?:\s+(?:para|pra)\s+\S+(?:\s+\S+)?)?\s+(?:dizendo|falando|escrito|com)\s+(?:que\s+)?(.+)$/)))
+      return { acao: 'abrir', nome: 'o WhatsApp', alvo: 'a mensagem', url: 'https://wa.me/?text=' + enc(O(m[1])), nota: 'Escolha o contato e toque em enviar.' };
+    if ((m = n.match(/^(?:liga|ligue|ligar|telefona|chama)\s+(?:para|pra|pro)?\s*(?:o numero\s+)?([\d\s()+-]{8,})$/)))
+      return { acao: 'abrir', nome: 'o telefone', alvo: m[1].replace(/\D/g, ''), url: 'tel:' + m[1].replace(/[^\d+]/g, ''), nota: 'Confirme a ligação no telefone.' };
+    const url = q.match(URL_RE);
+    if (url && /^(abre|abrir|abra|entra|entrar|entre|acessa|acessar|vai)\b/.test(n))
+      return { acao: 'abrir', nome: 'o site', alvo: url[1], url: /^https?:/i.test(url[1]) ? url[1] : 'https://' + url[1] };
+    return null;
+  }
+  function addShareButton(el, text) {
+    const box = document.createElement('div'); box.className = 'src';
+    const b = document.createElement('a'); b.href = '#'; b.className = 'actbtn'; b.textContent = '↗ Compartilhar';
+    b.onclick = async e => {
+      e.preventDefault();
+      try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); b.textContent = '✓ Copiado'; } } catch (err) {}
+    };
+    box.appendChild(b); el.appendChild(box); log.scrollTop = log.scrollHeight;
+  }
+  function addActionButton(el, act) {
+    const box = document.createElement('div'); box.className = 'src';
+    const a = document.createElement('a'); a.href = act.url; a.target = '_blank'; a.rel = 'noopener'; a.className = 'actbtn';
+    a.textContent = '▶ Abrir ' + act.nome.replace(/^o /, '');
+    box.appendChild(a); el.appendChild(box); log.scrollTop = log.scrollHeight;
+    return a;
+  }
+
+  // Timers, lembretes e despertador: ficam guardados e avisam falando e vibrando (com o app aberto)
+  let alarms = (() => { try { return JSON.parse(store.get('jarvis-alarmes', '[]')) || []; } catch (e) { return []; } })();
+  const saveAlarms = () => store.set('jarvis-alarmes', JSON.stringify(alarms));
+  const NUMW = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12, quinze: 15, vinte: 20, trinta: 30, quarenta: 40, meia: 0.5 };
+  const numOf = w => NUMW[w] ?? parseFloat(String(w).replace(',', '.'));
+  const NUMRX = '(\\d+(?:[.,]\\d+)?|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|meia)';
+
+  // "às 15h", "as 7:30", "7 da manhã", "meio-dia", "amanhã às 8" -> data/hora
+  function parseClock(n) {
+    let h = null, mi = 0;
+    if (/\bmeio[- ]dia\b/.test(n)) h = 12;
+    else if (/\bmeia[- ]noite\b/.test(n)) h = 0;
+    else {
+      const m = n.match(new RegExp('\\b(?:as|a|para as|pras|pra|para)\\s+' + NUMRX + '(?:\\s*(?:h|:|horas?)\\s*(\\d{1,2})?)?(?:\\s*(?:e\\s+(\\d{1,2}|meia)))?(?:\\s+(?:minutos?))?(\\s+(?:da|de)\\s+(?:manha|tarde|noite|madrugada))?')) ||
+                n.match(/\b(\d{1,2})(?:h|:)(\d{2})?\b(\s+(?:da|de)\s+(?:manha|tarde|noite|madrugada))?/);
+      if (!m) return null;
+      h = numOf(m[1]); if (isNaN(h) || h > 23) return null;
+      const extra = m.length > 4 ? m[3] : null;
+      mi = m[2] ? parseInt(m[2], 10) : extra === 'meia' ? 30 : extra ? parseInt(extra, 10) : 0;
+      const period = (m.length > 4 ? m[4] : m[3]) || '';
+      if (/tarde|noite/.test(period) && h < 12) h += 12;
+      if (/manha|madrugada/.test(period) && h === 12) h = 0;
+    }
+    const now = new Date(); const d = new Date(now); d.setSeconds(0, 0); d.setHours(h, mi);
+    if (/\bamanha\b/.test(n)) d.setDate(d.getDate() + 1);
+    else if (d <= now) d.setDate(d.getDate() + 1);   // já passou hoje: é amanhã
+    return d;
+  }
+  const clockText = d => {
+    const today = new Date(); const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
+    const day = d.toDateString() === today.toDateString() ? 'hoje' : d.toDateString() === tomorrow.toDateString() ? 'amanhã' : d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return day + ' às ' + d.getHours() + (d.getMinutes() ? 'h' + String(d.getMinutes()).padStart(2, '0') : ' horas');
+  };
+
+  function planTimer(n, q) {
+    if (/^(?:cancela|cancelar|cancele|para|pare|parar|desliga|desligue|desligar|apaga|apague|tira|remove|remova|exclui|exclua)\b.*\b(timer|cronometro|alarme|despertador|lembrete|aviso)s?\b/.test(n)) return { acao: 'timer_cancelar' };
+    if (/\b(quais|meus|tem algum|lista)\b.*\b(lembretes?|alarmes?|timers?|despertador)/.test(n)) return { acao: 'timer_listar' };
+    // Despertador / alarme num horário
+    const wake = /\b(me acord[ae]|despertador|alarme)\b/.test(n) && !/^(?:me )?(?:lembre|lembra|lembrar|avise|avisa|avisar)\b/.test(n);
+    const wakeIn = wake && n.match(new RegExp('\\b(?:em|daqui a|daqui|dentro de)\\s+' + NUMRX + '\\s*(minutos?|horas?)\\b'));
+    if (wakeIn) {
+      const v = numOf(wakeIn[1]), secs = Math.round(v * (wakeIn[2].startsWith('min') ? 60 : 3600));
+      if (secs > 0 && secs <= 24 * 3600) { const d = new Date(Date.now() + secs * 1000); return { acao: 'timer', at: d.getTime(), kind: 'despertador', text: 'hora de acordar', label: clockText(d) }; }
+    }
+    if (wake) {
+      const d = parseClock(n); if (d) return { acao: 'timer', at: d.getTime(), kind: 'despertador', text: 'hora de acordar', label: clockText(d) };
+    }
+    // Lembrete com texto: "me lembre de X em 20 minutos" / "me lembre às 15h de X"
+    const rem = n.match(/\b(?:me )?(?:lembre|lembra|lembrar|avise|avisa|avisar|chame|chama)(?:-me)?\b(.*)$/);
+    const dur = n.match(new RegExp('\\b(?:em|daqui a|daqui|dentro de|por)\\s+' + NUMRX + '\\s*(segundos?|minutos?|horas?)\\b')) ||
+                n.match(new RegExp('\\b(?:timer|cronometro|temporizador)\\b.*?' + NUMRX + '\\s*(segundos?|minutos?|horas?)\\b'));
+    if (dur && (rem || /\b(timer|cronometro|temporizador)\b/.test(n))) {
+      const v = numOf(dur[1]); const unit = dur[2].startsWith('seg') ? 1 : dur[2].startsWith('min') ? 60 : 3600;
+      const secs = Math.round(v * unit); if (!secs || secs > 24 * 3600) return null;
+      const label = dur[1] === 'meia' ? 'meia hora' : (fmtNum(v) + ' ' + (v === 1 ? dur[2].replace(/s$/, '') : dur[2].replace(/s?$/, 's')));
+      const text = rem ? reminderText(q, rem[1], dur[0]) : '';
+      return { acao: 'timer', at: Date.now() + secs * 1000, kind: text ? 'lembrete' : 'timer', text, label };
+    }
+    if (rem) {
+      const d = parseClock(n);
+      if (d) { const text = reminderText(q, rem[1], ''); return { acao: 'timer', at: d.getTime(), kind: 'lembrete', text: text || 'o seu lembrete', label: clockText(d) }; }
+    }
+    return null;
+  }
+  // Tira o horário da frase e fica só com o que lembrar
+  function reminderText(q, tail, durPart) {
+    let t = tail.replace(durPart, ' ')
+      .replace(/\b(?:hoje|amanha)\b/g, ' ')
+      .replace(new RegExp('\\b(?:as|a|para as|pras|pra|para)\\s+' + NUMRX + '(?:\\s*(?:h|:|horas?)\\s*(\\d{1,2})?)?(?:\\s*(?:e\\s+(\\d{1,2}|meia)))?(\\s+(?:minutos?))?(\\s+(?:da|de)\\s+(?:manha|tarde|noite|madrugada))?', 'g'), ' ')
+      .replace(/\b\d{1,2}(?:h|:)\d{0,2}\b/g, ' ').replace(/\bmeio[- ]dia\b|\bmeia[- ]noite\b/g, ' ')
+      .replace(/^\s*(?:de|que|para|pra)\s+/, '').replace(/\s+/g, ' ').trim();
+    t = t.replace(/^(?:de|que|para|pra)\s+/, '').replace(/\s+(?:de|que)$/, '');
+    return t.length > 2 ? orig(q, t) : '';
+  }
+  function beep() {
+    try { const c = audioCtx(); [0, 0.45].forEach(off => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = 0.15; o.connect(g).connect(c.destination); o.start(c.currentTime + off); o.stop(c.currentTime + off + 0.3); }); } catch (e) {}
+  }
+  async function fireAlarm(a, late) {
+    try { navigator.vibrate && navigator.vibrate([400, 150, 400, 150, 400]); } catch (e) {}
+    beep();
+    const text = a.kind === 'despertador' ? 'Bom dia, senhor. Está na hora de acordar.'
+      : a.kind === 'lembrete' ? 'Senhor, ' + (late ? 'lembrete atrasado' : 'lembrete') + ': ' + swapPerson(a.text) + '.'
+      : 'Senhor, o timer de ' + a.label + ' terminou.';
+    addMsg('jarvis', '⏰ ' + text);
+    const wasActive = active; active = true;
+    const sp = newSpeaker(); sp.push(text); await sp.close();
+    if (!wasActive) { active = false; setPhase('off'); }
+  }
+  let alarmTimer = null;
+  function scheduleAlarms() {                    // acorda só quando o próximo aviso vence (economiza bateria)
+    clearTimeout(alarmTimer); alarmTimer = null;
+    if (!alarms.length) return;
+    const wait = Math.max(200, Math.min(alarms[0].at - Date.now(), 60 * 1000));
+    alarmTimer = setTimeout(() => { checkAlarms(false); scheduleAlarms(); }, wait);
+  }
+  function addAlarm(plan) { alarms.push({ at: plan.at, kind: plan.kind, text: plan.text || '', label: plan.label }); alarms.sort((a, b) => a.at - b.at); saveAlarms(); scheduleAlarms(); }
+  // Confere os avisos a cada segundo; ao abrir o app, avisa os que passaram enquanto ele estava fechado
+  function checkAlarms(opening) {
+    const now = Date.now(); const due = alarms.filter(a => a.at <= now);
+    if (!due.length) return;
+    alarms = alarms.filter(a => a.at > now); saveAlarms();
+    due.forEach(a => { const late = now - a.at > 60000; if (!late || (opening && now - a.at < 12 * 3600 * 1000 && a.kind !== 'timer')) fireAlarm(a, late); });
+  }
+
+  // Agenda: abre o Google Agenda com o compromisso já preenchido
+  function planCalendar(q, n) {
+    const m = n.match(/^(?:marca|marque|marcar|anota|anote|coloca|coloque|adiciona|adicione|agenda|agende|agendar|cria|crie)\s+(?:na|no|um|uma)?\s*(?:minha\s+)?(?:agenda|calendario|compromisso|evento|reuniao)?\s*(?:de |:)?\s*(.+)$/);
+    if (!m || !/\b(agenda|calendario|compromisso|evento|agendar|agende|agenda)\b/.test(n)) return null;
+    let rest = m[1];
+    const date = parseDate(rest) || (/\bamanha\b/.test(rest) ? (() => { const d = new Date(); d.setDate(d.getDate() + 1); return { d }; })() : null);
+    const clock = /\b(as|a)\s+\d|\d(h|:)|meio[- ]dia/.test(rest) ? parseClock(rest) : null;
+    let start = clock ? new Date(clock) : null;
+    if (date) { const d = new Date(date.d); if (start) d.setHours(start.getHours(), start.getMinutes(), 0, 0); start = d; }
+    if (!start) { start = new Date(); start.setDate(start.getDate() + (/\bamanha\b/.test(rest) ? 1 : 0)); }
+    let title = rest.replace(/\b(?:hoje|amanha)\b/g, ' ')
+      .replace(/\b(?:dia\s+)?\d{1,2}\s+de\s+(?:janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de\s+\d{4})?/g, ' ')
+      .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{4})?\b/g, ' ')
+      .replace(new RegExp('\\b(?:as|a)\\s+' + NUMRX + '(?:\\s*(?:h|:|horas?)\\s*(\\d{1,2})?)?(\\s+(?:da|de)\\s+(?:manha|tarde|noite))?', 'g'), ' ')
+      .replace(/\b\d{1,2}(?:h|:)\d{0,2}\b/g, ' ').replace(/\s+(?:no|na|dia|para|pra)\s*$/, '').replace(/\s+/g, ' ').trim();
+    title = orig(q, title) || 'Compromisso';
+    const p2 = x => String(x).padStart(2, '0');
+    const fmt = d => d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + (clock ? 'T' + p2(d.getHours()) + p2(d.getMinutes()) + '00' : '');
+    const end = new Date(start); if (clock) end.setHours(end.getHours() + 1); else end.setDate(end.getDate() + 1);
+    const when = clock ? clockText(start) : start.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return { acao: 'abrir', nome: 'a agenda', alvo: title + ', ' + when, url: 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + enc(title) + '&dates=' + fmt(start) + '/' + fmt(end), nota: 'Confira e toque em salvar.' };
+  }
+
+  // Lanterna (usa a luz da câmera traseira) e bateria
+  let torchStream = null;
+  async function setTorch(on) {
+    if (!on) { if (torchStream) { torchStream.getTracks().forEach(t => t.stop()); torchStream = null; return 'Lanterna desligada, senhor.'; } return 'A lanterna já está desligada, senhor.'; }
+    try {
+      if (!torchStream) torchStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      const track = torchStream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (!caps.torch) { torchStream.getTracks().forEach(t => t.stop()); torchStream = null; return 'Infelizmente o navegador deste celular não me deixa controlar a lanterna, senhor.'; }
+      await track.applyConstraints({ advanced: [{ torch: true }] });
+      return 'Lanterna ligada, senhor. Mantenha o Jarvis aberto para ela continuar acesa.';
+    } catch (e) {
+      if (torchStream) { torchStream.getTracks().forEach(t => t.stop()); torchStream = null; }
+      return /denied|not allowed|permission/i.test(String(e && (e.name + e.message))) ? 'Preciso da permissão da câmera para usar a lanterna, senhor.' : 'Não consegui ligar a lanterna, senhor.';
+    }
+  }
+  async function batteryText() {
+    try {
+      const b = await navigator.getBattery();
+      const pct = Math.round(b.level * 100);
+      return 'A bateria está em ' + pct + ' por cento' + (b.charging ? ' e carregando' : '') + ', senhor.' + (!b.charging && pct <= 15 ? ' Sugiro colocar para carregar.' : '');
+    } catch (e) { return 'Este navegador não me deixa ver a bateria, senhor.'; }
+  }
+  function timeText(n) {
+    const d = new Date();
+    if (/\b(que dia|qual a data|data de hoje|dia da semana|dia e hoje)\b/.test(n)) return 'Hoje é ' + d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', senhor.';
+    const h = d.getHours(), m = d.getMinutes();
+    return 'São ' + h + (m ? ' e ' + m : ' horas') + ', senhor.';
+  }
+
+  // ================= CONTAS EXATAS (funcionam sem internet) =================
+  const UNITS = {
+    km: ['dist', 1000, 'quilômetros'], quilometro: ['dist', 1000, 'quilômetros'], m: ['dist', 1, 'metros'], metro: ['dist', 1, 'metros'],
+    cm: ['dist', 0.01, 'centímetros'], centimetro: ['dist', 0.01, 'centímetros'], milha: ['dist', 1609.344, 'milhas'], pe: ['dist', 0.3048, 'pés'],
+    polegada: ['dist', 0.0254, 'polegadas'], jarda: ['dist', 0.9144, 'jardas'],
+    kg: ['peso', 1, 'quilos'], quilo: ['peso', 1, 'quilos'], quilograma: ['peso', 1, 'quilos'], g: ['peso', 0.001, 'gramas'], grama: ['peso', 0.001, 'gramas'],
+    libra: ['peso', 0.45359237, 'libras'], onca: ['peso', 0.028349523, 'onças'], tonelada: ['peso', 1000, 'toneladas'],
+    l: ['vol', 1, 'litros'], litro: ['vol', 1, 'litros'], ml: ['vol', 0.001, 'mililitros'], mililitro: ['vol', 0.001, 'mililitros'], galao: ['vol', 3.785411784, 'galões'],
+    'km/h': ['vel', 1, 'quilômetros por hora'], mph: ['vel', 1.609344, 'milhas por hora'],
+    celsius: ['temp', 'C', 'graus Celsius'], c: ['temp', 'C', 'graus Celsius'], fahrenheit: ['temp', 'F', 'graus Fahrenheit'], f: ['temp', 'F', 'graus Fahrenheit'], kelvin: ['temp', 'K', 'kelvin']
+  };
+  function unitKey(w) {
+    w = w.replace(/^graus? /, '').replace(/°/g, '').trim();
+    if (UNITS[w]) return w;
+    const sing = w.replace(/(oes)$/, 'ao').replace(/s$/, '');
+    if (UNITS[sing]) return sing;
+    if (/^milhas? por hora$/.test(w)) return 'mph';
+    if (/^quilometros? por hora$/.test(w)) return 'km/h';
+    return null;
+  }
+  function tryConvert(q) {
+    const n = norm(q).replace(/,(\d)/g, '.$1');
+    const m = n.match(/(-?\d+(?:\.\d+)?)\s*(graus? \w+|°\s?\w|[a-z/]+(?: por hora)?)\s+(?:em|para|pra|e quanto em|equivale(?:m)? a|sao quantos?|e quantos?)\s+(graus? \w+|°?\w+(?: por hora)?)/);
+    if (!m) return null;
+    const a = unitKey(m[2]), b = unitKey(m[3]);
+    if (!a || !b || UNITS[a][0] !== UNITS[b][0] || a === b) return null;
+    const v = parseFloat(m[1]); let r;
+    if (UNITS[a][0] === 'temp') {
+      const toC = { C: x => x, F: x => (x - 32) * 5 / 9, K: x => x - 273.15 }, fromC = { C: x => x, F: x => x * 9 / 5 + 32, K: x => x + 273.15 };
+      r = fromC[UNITS[b][1]](toC[UNITS[a][1]](v));
+    } else r = v * UNITS[a][1] / UNITS[b][1];
+    return { expr: fmtNum(v) + ' ' + UNITS[a][2] + ' = ' + fmtNum(Math.round(r * 100) / 100) + ' ' + UNITS[b][2] };
+  }
+  const MESES = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  function easter(y) { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451); const mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return new Date(y, mo - 1, da); }
+  const nthSunday = (y, mo, nth) => { const d = new Date(y, mo, 1); d.setDate(1 + ((7 - d.getDay()) % 7) + 7 * (nth - 1)); return d; };
+  const NAMED = {
+    natal: y => new Date(y, 11, 25), 'ano novo': y => new Date(y + 1, 0, 1), reveillon: y => new Date(y + 1, 0, 1), pascoa: easter,
+    carnaval: y => { const d = easter(y); d.setDate(d.getDate() - 47); return d; }, 'dia das maes': y => nthSunday(y, 4, 2), 'dia dos pais': y => nthSunday(y, 7, 2),
+    'dia das criancas': y => new Date(y, 9, 12), 'dia dos namorados': y => new Date(y, 5, 12), tiradentes: y => new Date(y, 3, 21),
+    'independencia': y => new Date(y, 8, 7), 'sete de setembro': y => new Date(y, 8, 7), finados: y => new Date(y, 10, 2), 'halloween': y => new Date(y, 9, 31)
+  };
+  function parseDate(n) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    for (const [k, f] of Object.entries(NAMED)) if (n.includes(k)) {
+      let d = f(today.getFullYear()); if (k !== 'ano novo' && k !== 'reveillon' && d < today) d = f(today.getFullYear() + 1);
+      if ((k === 'ano novo' || k === 'reveillon') && d < today) d = f(today.getFullYear() + 1);
+      return { d, nome: k };
+    }
+    const m = n.match(/\b(?:dia\s+)?(\d{1,2})\s+de\s+(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de\s+(\d{4}))?/) ||
+              n.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\b/);
+    if (!m) return null;
+    const mo = isNaN(m[2]) ? MESES.indexOf(m[2]) : parseInt(m[2], 10) - 1;
+    let y = m[3] ? parseInt(m[3], 10) : today.getFullYear();
+    let d = new Date(y, mo, parseInt(m[1], 10));
+    if (!m[3] && d < today) d = new Date(y + 1, mo, parseInt(m[1], 10));
+    return { d, explicitYear: !!m[3] };
+  }
+  const fmtDate = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  function tryDates(q) {
+    const n = norm(q);
+    if (/quantos dias (faltam|falta|ate|para)|quanto tempo (falta|ate)|faltam quantos dias/.test(n)) {
+      const p = parseDate(n); if (!p) return null;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const days = Math.round((p.d - today) / 864e5);
+      return { expr: (days === 0 ? 'É hoje' : days > 0 ? 'Faltam ' + days + ' dias' : 'Já passaram ' + (-days) + ' dias') + (p.nome ? ' para ' + p.nome : '') + ' (' + fmtDate(p.d) + ')' };
+    }
+    if (/que dia da semana|cai (em )?que dia|caiu (em )?que dia|foi (em )?que dia da semana|vai cair/.test(n)) {
+      const p = parseDate(n); if (!p) return null;
+      return { expr: (p.nome ? p.nome + ': ' : '') + fmtDate(p.d) };
+    }
+    return null;
+  }
+
   // ================= RESPONDER =================
   const SYSTEM = [
     'Você é JARVIS, assistente pessoal por voz: educado, eficiente, com humor seco e discreto. Chame o usuário de "senhor".',
     'Responda em português do Brasil, direto, em 1 a 3 frases curtas, salvo se pedirem detalhes. A resposta será falada: sem markdown, listas, emojis ou links.',
-    'Se vier MATERIAL, use só ele para fatos, números e datas, preferindo o mais recente; se ele não tiver a resposta, diga que não encontrou. Sem material, responda com o que você sabe e nunca invente números ou datas.'
+    'Se vier MATERIAL, use só ele para fatos, números e datas, preferindo o mais recente; se ele não tiver a resposta, diga que não encontrou. Sem material, responda com o que você sabe e nunca invente números ou datas.',
+    'Use o que você sabe sobre o usuário de forma natural, só quando ajudar, e às vezes chame-o pelo nome se souber. Se vierem conversas anteriores, use-as para dar continuidade. Se a pergunta for ambígua, responda a interpretação mais provável.'
   ].join('\n');
-  const contextLine = () => 'Agora: ' + new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' }) + '.' + (settings.city ? ' Usuário mora em ' + settings.city + '.' : '');
+  const contextLine = q => 'Agora: ' + new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' }) + '.' + (settings.city ? ' Usuário mora em ' + settings.city + '.' : '') + memoryLine(q);
   const short = (t, n) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t);
   function buildMessages(q, material, withHistory) {
     const msgs = [{ role: 'system', content: SYSTEM }];
     if (withHistory) history.slice(-2).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 200) }); msgs.push({ role: 'assistant', content: short(h.a, 350) }); });
-    msgs.push({ role: 'user', content: contextLine() + (material ? '\n' + material : '') + '\n\nPergunta: ' + q });
+    msgs.push({ role: 'user', content: contextLine(q) + (material ? '\n' + material : '') + '\n\nPergunta: ' + q });
     return msgs;
   }
 
@@ -899,25 +1627,102 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     };
   }
 
+  // Troca "meu/minha" por "seu/sua" para o Jarvis repetir o que você disse
+  const VERB3 = { moro: 'mora', gosto: 'gosta', tenho: 'tem', trabalho: 'trabalha', estudo: 'estuda', sou: 'é', adoro: 'adora', amo: 'ama', odeio: 'odeia', detesto: 'detesta', 'torço': 'torce', torco: 'torce', como: 'come', vou: 'vai', 'faço': 'faz', quero: 'quer', prefiro: 'prefere', uso: 'usa', jogo: 'joga', falo: 'fala', preciso: 'precisa', estou: 'está', sei: 'sabe', posso: 'pode', vivo: 'vive', nasci: 'nasceu', acordo: 'acorda', durmo: 'dorme', tomo: 'toma' };
+  const swapPerson = t => t.replace(/\beu (n[aã]o )?([a-zçãé]+)\b/gi, (w, no, v) => VERB3[v.toLowerCase()] ? 'o senhor ' + (no || '') + VERB3[v.toLowerCase()] : w).replace(/\b(meu|minha|meus|minhas|eu|mim|comigo)\b/gi, w => ({ meu: 'seu', minha: 'sua', meus: 'seus', minhas: 'suas', eu: 'o senhor', mim: 'o senhor', comigo: 'com o senhor' })[w.toLowerCase()]);
+  function localReply(plan, q) {
+    if (plan.acao === 'lembrar') {
+      remember(plan.fato);
+      return { reply: 'Anotado, senhor: ' + swapPerson(plan.fato).replace(/[.!]$/, '') + '.' };
+    }
+    if (plan.acao === 'lembrar_auto') {
+      const replaced = plan.facts.filter(f => f.cat && memories.some(m => m.cat === f.cat && norm(m.text) !== norm(f.text)));
+      plan.facts.forEach(f => remember(f.text, f.cat));
+      const nome = plan.facts.find(f => f.cat === 'nome');
+      if (nome) return { reply: 'Prazer, ' + nome.text.replace(/^meu nome é /i, '') + '. Vou me lembrar disso.' };
+      return { reply: (replaced.length ? 'Atualizei aqui, senhor: ' : 'Anotado, senhor: ') + plan.facts.map(f => swapPerson(f.text)).join('; ') + '.' };
+    }
+    if (plan.acao === 'recordar') return { reply: recallByDay(norm(q)) };
+    if (plan.acao === 'esquecer') {
+      const k = forget(plan.what === 'tudo' ? '' : plan.what);
+      return { reply: k ? (plan.what === 'tudo' ? 'Pronto, senhor. Apaguei tudo o que eu tinha anotado.' : 'Pronto, senhor. Esqueci isso.') : 'Não encontrei nada parecido nas minhas anotações, senhor.' };
+    }
+    if (plan.acao === 'memorias') {
+      if (!memories.length) return { reply: 'Ainda não tenho nada anotado sobre o senhor. É só me contar, por exemplo: "meu time é o Bahia" ou "Jarvis, lembre que…".' };
+      const nome = userName();
+      const items = memories.filter(m => m.cat !== 'nome').slice(-12).map(m => swapPerson(m.text));
+      return { reply: (nome ? 'O senhor é ' + nome + '. ' : '') + (items.length ? 'Sei que: ' + items.join('; ') + '.' : '') + (memories.length > 13 ? ' E mais ' + (memories.length - 13) + ' coisas. Veja tudo em Configurações.' : '') };
+    }
+    if (plan.acao === 'abrir') {
+      return { reply: 'Abrindo ' + plan.nome + (plan.alvo && plan.nome !== 'o site' ? ': ' + plan.alvo : '') + '. ' + (plan.nota ? plan.nota + ' ' : '') + 'Se não abrir sozinho, toque no botão.', action: plan, tryOpen: true };
+    }
+    if (plan.acao === 'timer') {
+      addAlarm(plan);
+      const tail = ' Deixe o app aberto para eu avisar.';
+      if (plan.kind === 'despertador') return { reply: 'Despertador marcado para ' + plan.label + ', senhor.' + tail };
+      if (plan.kind === 'lembrete') return { reply: 'Combinado, senhor. ' + (/^(hoje|amanhã|segunda|terça|quarta|quinta|sexta|sábado|domingo|\d)/.test(plan.label) ? 'Vou lembrar ' + plan.label : 'Daqui a ' + plan.label + ' eu lembro') + ': ' + swapPerson(plan.text) + '.' + tail };
+      return { reply: 'Timer de ' + plan.label + ' iniciado, senhor.' + tail };
+    }
+    if (plan.acao === 'timer_cancelar') {
+      const k = alarms.length; alarms = []; saveAlarms(); scheduleAlarms();
+      return { reply: k ? (k > 1 ? 'Cancelei os ' + k + ' avisos, senhor.' : 'Aviso cancelado, senhor.') : 'Não há nenhum timer ou lembrete ligado, senhor.' };
+    }
+    if (plan.acao === 'timer_listar') {
+      return { reply: alarms.length ? 'Tenho ' + alarms.length + (alarms.length > 1 ? ' avisos' : ' aviso') + ', senhor: ' + alarms.map(a => (a.kind === 'timer' ? 'timer' : a.kind === 'despertador' ? 'despertador' : swapPerson(a.text)) + ' ' + clockText(new Date(a.at))).join('; ') + '.' : 'Nenhum timer, lembrete ou despertador marcado, senhor.' };
+    }
+    if (plan.acao === 'hora') return { reply: timeText(norm(q)) };
+    if (plan.acao === 'bateria') return batteryText().then(reply => ({ reply }));
+    if (plan.acao === 'lanterna') return setTorch(plan.on).then(reply => ({ reply }));
+    if (plan.acao === 'compartilhar') {
+      const lastA = history.length ? history[history.length - 1].a : '';
+      if (!lastA) return { reply: 'Ainda não tenho nenhuma resposta para compartilhar, senhor.' };
+      return { reply: 'Pronto para compartilhar, senhor. Toque no botão.', share: lastA };
+    }
+    return null;
+  }
+
   async function ask(q) {
     const myTurn = ++turnId;
     addMsg('user', q);
     const bubble = addMsg('jarvis', '…');
     let reply = '', sources = [], speaker = null;
     try {
+      const plan = route(q);
+      if (['pesquisar', 'clima', 'cotacao', 'ler'].includes(plan.acao)) lastPlan = plan;
+      if (plan.acao !== 'lembrar_auto' && plan.acao !== 'lembrar') extractFacts(q).forEach(f => remember(f.text, f.cat));   // "meu nome é Eduardo, que horas são?" também anota
+
+      // Pedidos que o Jarvis resolve na hora, sem precisar do cérebro
+      const local = await localReply(plan, q);
+      if (local) {
+        setJarvisText(bubble, local.reply);
+        if (local.share) addShareButton(bubble, local.share);
+        if (local.action) {
+          const btn = addActionButton(bubble, local.action);
+          if (local.tryOpen) { try { window.open(local.action.url, '_blank', 'noopener'); } catch (e) {} }
+          btn.addEventListener('click', () => {});
+        }
+        history.push({ q, a: local.reply }); if (history.length > 8) history = history.slice(-8); saveHistory();
+        saveEpisode(q, local.reply, plan.acao);
+        const sp = active ? newSpeaker() : null;
+        if (sp) { sp.push(local.reply); await sp.close(); }
+        if (!active || myTurn !== turnId) return;
+        if (mode === 'voice') startListening(); else { active = false; setPhase('off'); hint(''); keepAwake(false); }
+        return;
+      }
+
       if (!engine) {
         setPhase('loading'); hint('Ligando o cérebro…');
         await loadEngine();
         if (myTurn !== turnId) { bubble.remove(); return; }
       }
+      touchEngine();
       setPhase('thinking'); hint('');
-      const plan = route(q);
-      if (plan.acao !== 'responder' && plan.acao !== 'conta') lastPlan = plan;
-      if (myTurn !== turnId) { bubble.remove(); return; }
 
       let material = '';
       if (plan.acao === 'conta') {
         material = 'MATERIAL (cálculo exato feito pelo sistema): ' + plan.math.expr + ' = ' + fmtNum(plan.math.value) + '.';
+      } else if (plan.acao === 'exato') {
+        material = 'MATERIAL (resultado exato calculado pelo sistema, use exatamente): ' + plan.calc.expr + '.';
       } else if (plan.acao !== 'responder' && !navigator.onLine) {
         material = plan.acao === 'clima' || plan.acao === 'cotacao' || plan.acao === 'ler'
           ? 'MODO SEM INTERNET: não dá para consultar ' + (plan.acao === 'clima' ? 'o clima' : plan.acao === 'cotacao' ? 'a cotação' : 'sites') + ' agora. Diga isso ao usuário em uma frase e, se fizer sentido, ofereça o que você sabe de forma geral.'
@@ -946,7 +1751,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         setPhase('thinking');
       }
 
-      speaker = (mode === 'voice' || mode === 'text') && active ? makeSpeaker() : null;
+      speaker = (mode === 'voice' || mode === 'text') && active ? newSpeaker() : null;
       let spokenUpTo = 0;
       const onText = t => {
           if (myTurn !== turnId) return;
@@ -955,27 +1760,37 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
           const rest = t.slice(spokenUpTo);
           let cut = -1, m; const re = /[.!?…;:](\s|$)/g;
           while ((m = re.exec(rest))) cut = m.index + 1;
-          if (cut >= 25 || (cut > 0 && spokenUpTo > 0)) { speaker.push(rest.slice(0, cut)); spokenUpTo += cut; }
+          if (cut >= 12 || (cut > 0 && spokenUpTo > 0)) { speaker.push(rest.slice(0, cut)); spokenUpTo += cut; }
       };
+      // Conversas antigas sobre o mesmo assunto: o Jarvis dá continuidade
+      const eps = relatedEpisodes(q);
+      if (eps.length) material += (material ? '\n' : '') + 'Conversas anteriores sobre isso: ' + eps.map(e => '(' + epDate(e.t) + ') Usuário: ' + e.q + ' | Jarvis: ' + e.a).join(' || ');
+      // Pediu detalhes? Resposta mais completa
+      const wantsMore = /\b(detalh\w*|expliqu\w*|explica\w*|me fal[ae] mais|conta mais|passo a passo|como (?:se )?faz\w*|resum\w*|list\w*|compar\w*|diferenca)\b/.test(norm(q));
+      if (wantsMore) material += (material ? '\n' : '') + 'O usuário quer uma resposta mais completa: use até 6 frases, ainda sem listas ou símbolos.';
+      const maxTok = wantsMore ? 380 : 180;
+      const foreign = /\b(ingles|espanhol|frances|alemao|italiano|japones|chines|coreano|russo|arabe|grego|hebraico|hindi|tailandes|latim|traduz\w*|traducao|idioma|lingua|alfabeto|kanji|emoji|simbolo|codigo|programa)/.test(norm(q));
       let raw;
-      try { raw = await generate(buildMessages(q, material, true), { max: 180, turn: myTurn, onText }); }
+      try { raw = await generate(buildMessages(q, material, true), { max: maxTok, turn: myTurn, onText, foreign }); }
       catch (e) {
         if (!/context window|prompt tokens exceed/i.test(String(e && e.message))) throw e;
         // Pedido grande demais para a janela: tenta de novo enxuto, sem histórico
-        raw = await generate(buildMessages(q, material.slice(0, 1200), false), { max: 180, turn: myTurn, onText });
+        raw = await generate(buildMessages(q, material.slice(0, 1200), false), { max: maxTok, turn: myTurn, onText, foreign });
       }
       reply = raw.replace(/\*\*|__|#+ /g, '').trim() || 'Desculpe, senhor, não consegui formular uma resposta.';
       if (speaker && myTurn === turnId) speaker.push(raw.trim() ? raw.slice(spokenUpTo) : reply);
     } catch (e) {
       if (myTurn !== turnId || !active) { bubble.remove(); return; }
-      reply = engineErrorText(e); sources = [];
-      speaker = makeSpeaker(); speaker.push(reply);
+      reply = e && e.broken ? await fixBrokenBrain() : engineErrorText(e); sources = [];
+      speaker = newSpeaker(); speaker.push(reply);
     }
     if (myTurn !== turnId || !active) return;
     setJarvisText(bubble, reply);
     addSources(bubble, sources);
     history.push({ q, a: reply });
     if (history.length > 8) history = history.slice(-8);
+    saveHistory();
+    saveEpisode(q, reply);
     if (speaker) await speaker.close();
     if (!active || myTurn !== turnId) return;
     if (mode === 'voice') startListening();
@@ -1034,7 +1849,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       addMsg('user', said);
       const bye = 'Até logo, senhor. Estarei aqui quando precisar.';
       addMsg('jarvis', bye);
-      const sp = makeSpeaker(); sp.push(bye); await sp.close();
+      const sp = newSpeaker(); sp.push(bye); await sp.close();
       stopAll(); return;
     }
     ask(said);
@@ -1061,22 +1876,25 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const pool = navigator.onLine ? pt : (pt.filter(v => v.localService !== false).length ? pt.filter(v => v.localService !== false) : pt);
     return pool.find(v => /^pt[-_]BR/i.test(v.lang)) || pool[0] || null;
   }
-  const cleanForSpeech = t => String(t || '').replace(/https?:\/\/\S+/g, '').replace(/[*#_`>~|\[\]]/g, '').replace(/\s+/g, ' ').trim();
-  function chunk(text) {
+  const cleanForSpeech = t => String(t || '').replace(/https?:\/\/\S+/g, '').replace(/[*#_`>~|\[\]]/g, '').replace(/[^\p{Script=Latin}\p{N}\s.,!?;:'"()%°ºª$€+=\-–—…\/@&]/gu, ' ').replace(/\s+/g, ' ').trim();
+  function chunk(text, max = 180, perSentence = false) {
     if (!text) return [];
     const sentences = text.match(/[^.!?…;]+[.!?…;]*\s*/g) || [text];
     const out = []; let cur = '';
     const push = s => { s = s.trim(); if (s) out.push(s); };
     sentences.forEach(s => {
-      if ((cur + s).length <= 180) { cur += s; return; }
+      if (!perSentence && (cur + s).length <= max) { cur += s; return; }
       push(cur); cur = '';
-      while (s.length > 180) { let cut = s.lastIndexOf(',', 180); if (cut < 60) cut = s.lastIndexOf(' ', 180); if (cut < 1) cut = 180; push(s.slice(0, cut + 1)); s = s.slice(cut + 1); }
+      while (s.length > max) { let cut = s.lastIndexOf(',', max); if (cut < 40) cut = s.lastIndexOf(' ', max); if (cut < 1) cut = max; push(s.slice(0, cut + 1)); s = s.slice(cut + 1); }
       cur = s;
     });
     push(cur);
     return out;
   }
-  function unlockSpeech() { if (!synth) return; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); } catch (e) {} }
+  function unlockSpeech() {
+    try { if (settings.voiceEngine === 'jarvis') audioCtx(); } catch (e) {}
+    if (!synth) return; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); } catch (e) {}
+  }
 
   // ================= ENCERRAR =================
   function stopAll() {
@@ -1084,6 +1902,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     killRecognizer();
     speakToken++;
     try { synth && synth.cancel(); } catch (e) {}
+    try { currentNeural && currentNeural.stop(); } catch (e) {} currentNeural = null;
     try { engine && engine.interruptGenerate && engine.interruptGenerate(); } catch (e) {}
     heardFinal = ''; heardInterim = ''; live.textContent = '';
     setPhase('off'); hint(''); keepAwake(false);
@@ -1098,7 +1917,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const g = await detectGPU();
     if (!localStorage.getItem('jarvis-model-chosen')) { settings.model = autoModel(); saveSettings(); }
     const m = MODELS[settings.model];
-    $('#modelAdvice').textContent = 'Vai baixar cerca de ' + (Math.round((m.tries[0][1] + 80) / 100) / 10).toString().replace('.', ',') + ' GB. Leva alguns minutos.';
+    $('#modelAdvice').textContent = 'Vai baixar cerca de ' + (Math.round((m.tries[0][1] + 145) / 100) / 10).toString().replace('.', ',') + ' GB. Leva alguns minutos.';
     $('#gpuErr').textContent = g.ok ? '' : g.why;
     $('#downloadBtn').disabled = !g.ok;
     $('#welcome').classList.add('open');
@@ -1110,16 +1929,25 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (!navigator.onLine) { addMsg('sys', 'Conecte-se à internet (de preferência Wi‑Fi) para preparar o Jarvis. Só precisa uma vez.'); return; }
     try {
       const est = await navigator.storage.estimate();
-      const need = (MODELS[settings.model].tries[0][1] + 100) * 1.15 * 1048576;
+      const need = (MODELS[settings.model].tries[0][1] + 160) * 1.15 * 1048576;
       if (est.quota && est.quota - est.usage < need) { addMsg('sys', 'Falta espaço no celular. Libere um pouco de espaço e tente de novo.'); return; }
     } catch (e) {}
     setPhase('loading'); hint('Deixe a tela ligada e o app aberto.');
     keepAwake(true);
     try {
-      showLoader(true, 'Passo 1 de 2: baixando o cérebro…', 0);
-      await loadEngine();
-      showLoader(true, 'Passo 1 de 2: testando o cérebro…', 1);
-      await generate([{ role: 'user', content: 'Responda apenas: ok' }], { max: 5, temperature: 0 });
+      const brainStep = async () => {
+        showLoader(true, 'Passo 1 de 3: baixando o cérebro…', 0);
+        await loadEngine();
+        showLoader(true, 'Passo 1 de 3: testando o cérebro…', 1);
+        await generate([{ role: 'user', content: 'Responda apenas com a palavra: pronto' }], { max: 6, temperature: 0 });
+      };
+      try { await brainStep(); }
+      catch (e) {
+        if (!e || !e.broken || !useF16()) throw e;
+        await fixBrokenBrain();                 // placa de vídeo não se deu bem com a versão rápida: baixa a compatível
+        addMsg('sys', 'Seu celular precisa da versão compatível do cérebro. Baixando agora, só desta vez.');
+        await brainStep();
+      }
     } catch (e) {
       showLoader(false); setPhase('off'); hint(''); keepAwake(false);
       addMsg('sys', engineErrorText(e) + ' Toque no núcleo para tentar de novo.');
@@ -1127,11 +1955,18 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     }
     let voiceOk = false;
     try {
-      await ensureStt((frac, mb) => showLoader(true, 'Passo 2 de 2: baixando a voz offline: ' + Math.round(frac * 100) + '%', frac));
-      showLoader(true, 'Passo 2 de 2: testando a voz offline…', 1);
+      await ensureStt((frac, mb) => showLoader(true, 'Passo 2 de 3: baixando o ouvido offline: ' + Math.round(frac * 100) + '%', frac));
+      showLoader(true, 'Passo 2 de 3: testando o ouvido offline…', 1);
       await sttCall('transcribe', new Float32Array(16000));
       voiceOk = true;
+      releaseStt();
     } catch (e) { voiceOk = false; }
+    try {
+      showLoader(true, 'Passo 3 de 3: baixando a voz do Jarvis…', 0);
+      await ensureJarvisVoice(frac => showLoader(true, 'Passo 3 de 3: baixando a voz do Jarvis: ' + Math.round(frac * 100) + '%', frac));
+      showLoader(true, 'Passo 3 de 3: testando a voz do Jarvis…', 1);
+      await ttsCall('speak', 'Pronto.');
+    } catch (e) { jarvisVoiceReady = false; }
     showLoader(false); setPhase('off'); hint(''); keepAwake(false);
     addMsg('sys', voiceOk
       ? 'Pronto! O Jarvis está preparado e funciona com ou sem internet. Toque no núcleo e fale.'
@@ -1150,6 +1985,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     }
     active = true; mode = 'voice';
     unlockSpeech(); keepAwake(true);
+    if (settings.voiceEngine === 'jarvis' && !jarvisVoiceReady) warmJarvisVoice();
     startListening();
   });
   $('#endBtn').addEventListener('click', stopAll);
@@ -1161,7 +1997,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (!engine && !loadingPromise && !(await isCached())) { openWelcome(); return; }
     inp.value = '';
     killRecognizer();
-    speakToken++; try { synth && synth.cancel(); } catch (err) {}
+    speakToken++; try { synth && synth.cancel(); } catch (err) {} try { currentNeural && currentNeural.stop(); } catch (err) {}
     unlockSpeech();
     if (!active) { active = true; mode = 'text'; }
     ask(q);
@@ -1171,17 +2007,15 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (active) stopAll();
-      if (settings.freeMem && engine && engine !== window.__JARVIS_TEST_ENGINE) {
-        hideTimer = setTimeout(async () => {
-          if (!document.hidden || !engine) return;
-          const e = engine; engine = null; loadingPromise = null;
-          try { await e.unload(); } catch (err) {}
-        }, 3 * 60 * 1000);
+      if (settings.freeMem) {
+        releaseStt(); releaseTts(); suspendAudio(true);          // voz e ouvido saem na hora (voltam em 1 ou 2 segundos)
+        if (engine && engine !== window.__JARVIS_TEST_ENGINE) hideTimer = setTimeout(() => { if (document.hidden) releaseEngine(); }, 3 * 60 * 1000);
       }
     } else {
       clearTimeout(hideTimer);
       if (!engine && !loadingPromise && settings.freeMem && !window.__JARVIS_TEST_ENGINE)
         isCached().then(c => { if (c && !engine && !loadingPromise) loadEngine().catch(() => {}); });
+      if (settings.freeMem) warmJarvisVoice();
     }
   });
 
@@ -1215,11 +2049,38 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     try { old && old !== window.__JARVIS_TEST_ENGINE && await old.unload(); } catch (e) {}
     if (await isCached()) loadEngine().catch(e => addMsg('sys', engineErrorText(e)));
   };
+  const es = $('#engineSel'), fxs = $('#fxSel');
+  async function refreshVoiceUI() {
+    es.value = settings.voiceEngine; fxs.value = settings.voiceFx;
+    const has = jarvisVoiceReady || await jarvisVoiceDownloaded();
+    const dl = $('#jarvisVoiceDl'), note = $('#jarvisVoiceNote');
+    if (settings.voiceEngine === 'jarvis' && !has) { dl.style.display = ''; note.textContent = 'A voz do Jarvis ainda não foi baixada. Até lá, ele usa a voz do celular.'; }
+    else { dl.style.display = 'none'; note.textContent = settings.voiceEngine === 'jarvis' ? 'Voz neural masculina que roda no celular, também sem internet.' : ''; }
+  }
+  es.onchange = () => { settings.voiceEngine = es.value; saveSettings(); refreshVoiceUI(); if (es.value === 'jarvis') warmJarvisVoice(); };
+  fxs.onchange = () => { settings.voiceFx = fxs.value; saveSettings(); applyFx(); };
+  $('#jarvisVoiceDl').onclick = async () => {
+    if (!navigator.onLine) { $('#jarvisVoiceNote').textContent = 'Conecte-se à internet para baixar a voz (só uma vez).'; return; }
+    const b = $('#jarvisVoiceDl'); b.disabled = true;
+    try {
+      audioCtx();
+      await ensureJarvisVoice(f => { b.textContent = 'BAIXANDO ' + Math.round(f * 100) + '%'; });
+      b.textContent = 'BAIXAR VOZ DO JARVIS (63 MB)'; b.disabled = false;
+      refreshVoiceUI();
+    } catch (e) { b.disabled = false; b.textContent = 'TENTAR DE NOVO'; $('#jarvisVoiceNote').textContent = 'Não consegui baixar a voz: ' + e.message; }
+  };
+  // Se a voz já está no celular, deixa ela pronta em segundo plano
+  async function warmJarvisVoice() {
+    if (jarvisVoiceReady || ttsW || settings.voiceEngine !== 'jarvis') return;
+    if (!(await jarvisVoiceDownloaded())) return;
+    jarvisVoiceOnPhone = true;
+    try { await ensureJarvisVoice(); } catch (e) {}
+  }
   const sts = $('#sttSel');
   sts.onchange = () => { settings.sttMode = sts.value; saveSettings(); };
   async function refreshOffline() {
     const c = await cachedChoice();
-    const v = sttReady || await sttIsDownloaded();
+    const v = await sttIsDownloaded();
     const box = $('#offlineStatus');
     if (c && v) { box.className = 'ok'; box.textContent = '✓ Pronto para usar com ou sem internet.'; }
     else if (c) { box.className = 'todo'; box.textContent = 'Funciona sem internet, mas sem a voz offline você vai precisar digitar quando estiver offline. Baixe em Avançado.'; }
@@ -1234,6 +2095,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       await ensureStt((frac, mb) => { btn.textContent = 'BAIXANDO ' + Math.round(frac * 100) + '%' + (mb ? ' DE ' + mb + ' MB' : ''); });
       btn.textContent = 'TESTANDO…';
       await sttCall('transcribe', new Float32Array(16000));   // um segundo de silêncio: confirma que funciona e guarda o motor
+      releaseStt();
       $('#sttNote').textContent = 'Voz offline pronta. Sem internet, o Jarvis entende você direto no celular.';
     } catch (e) {
       btn.disabled = false; btn.textContent = 'TENTAR DE NOVO';
@@ -1241,14 +2103,16 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     }
     refreshOffline();
   };
-  $('#openSettings').onclick = () => { refreshSettingsUI(); sts.value = settings.sttMode; refreshOffline(); $('#settings').classList.add('open'); };
+  $('#openSettings').onclick = () => { refreshSettingsUI(); sts.value = settings.sttMode; refreshOffline(); refreshVoiceUI(); refreshMemoryUI(); $('#settings').classList.add('open'); };
   $('#closeSettings').onclick = () => $('#settings').classList.remove('open');
   document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
   $('#testVoice').onclick = async () => {
     if (active) return;
     active = true; mode = 'text';
-    const sp = makeSpeaker(); sp.push('Às suas ordens, senhor. Todos os sistemas estão operacionais.'); await sp.close();
-    active = false; setPhase('off');
+    audioCtx();
+    const sp = newSpeaker(); const tok = speakToken;
+    sp.push('Às suas ordens, senhor. Todos os sistemas estão operacionais.'); await sp.close();
+    if (speakToken === tok) { active = false; setPhase('off'); }   // não atrapalha se outra fala já começou
   };
   $('#testSearch').onclick = async () => {
     const d = $('#diag'); d.textContent = 'Testando…';
@@ -1259,6 +2123,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       t('Wikipédia', async () => { const r = await searchWikipedia('Brasil'); if (!r.length) throw new Error('sem resultados'); return r[0].title; }),
       t('Clima (Open-Meteo)', async () => (await getWeather(settings.city || 'São Paulo')).text.split('.')[0]),
       t('Cotação (ExchangeRate)', async () => (await getCurrency('USD')).text.replace('Cotação: ', '').split(' (')[0]),
+      t('Voz do Jarvis', async () => { if (!(jarvisVoiceReady || await jarvisVoiceDownloaded())) throw new Error('ainda não baixada'); const m = await ttsCall('speak', 'Teste.'); return Math.round(m.buf.byteLength / 1024) + ' KB de áudio gerado'; }),
       t('Voz offline', async () => { if (!(sttReady || await sttIsDownloaded())) throw new Error('ainda não baixada'); return sttReady ? 'carregada' : 'baixada'; }),
       t('Cérebro local', async () => {
         const g = await detectGPU(); if (!g.ok) throw new Error(g.why);
@@ -1268,8 +2133,45 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     ]);
     d.textContent = lines.join('\n');
   };
+  function refreshMemoryUI() {
+    const nome = userName();
+    $('#memSummary').textContent = memories.length
+      ? (nome ? 'O Jarvis sabe que você é ' + nome + ' e ' : 'O Jarvis ') + 'tem ' + memories.length + ' lembrança(s) sobre você e ' + episodes.length + ' conversa(s) guardada(s).'
+      : 'O Jarvis ainda não sabe nada sobre você. Conte coisas como "meu nome é…", "eu moro em…" ou "Jarvis, lembre que…".';
+    const box = $('#memItems'); box.innerHTML = '';
+    memories.slice().reverse().forEach(m => {
+      const row = document.createElement('div'); row.className = 'memitem';
+      const t = document.createElement('span'); t.textContent = swapPerson(m.text).replace(/^\w/, c => c.toUpperCase());
+      const d = document.createElement('small'); d.textContent = epDate(m.t);
+      const x = document.createElement('button'); x.textContent = '✕'; x.title = 'Esquecer';
+      x.onclick = () => { memories = memories.filter(o => o.id !== m.id); saveMemories(); refreshMemoryUI(); };
+      row.append(t, d, x); box.appendChild(row);
+    });
+    $('#memNote').textContent = '';
+  }
+  $('#memBackup').onclick = () => {
+    const data = JSON.stringify({ jarvis: 1, salvo: new Date().toISOString(), memorias: memories, conversas: episodes, alarmes: alarms }, null, 1);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    a.download = 'jarvis-memoria-' + new Date().toISOString().slice(0, 10) + '.json'; document.body.appendChild(a); a.click(); a.remove();
+    $('#memSummary').textContent = 'Backup salvo na pasta Downloads. Guarde esse arquivo para restaurar se trocar de celular.';
+  };
+  $('#memRestore').onclick = () => $('#memFile').click();
+  $('#memFile').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d || !Array.isArray(d.memorias)) throw new Error('arquivo inválido');
+      const seen = new Set(memories.map(m => norm(m.text)));
+      d.memorias.forEach(m => { if (m && m.text && !seen.has(norm(m.text))) { memories.push(m); seen.add(norm(m.text)); } });
+      saveMemories();
+      if (Array.isArray(d.conversas)) { const ts = new Set(episodes.map(x => x.t)); episodes = episodes.concat(d.conversas.filter(x => x && !ts.has(x.t))).sort((a, b) => a.t - b.t).slice(-EP_MAX); store.set(EP_KEY, JSON.stringify(episodes)); }
+      refreshMemoryUI(); $('#memSummary').textContent = 'Memória restaurada: ' + memories.length + ' lembrança(s).';
+    } catch (err) { $('#memSummary').textContent = 'Não consegui restaurar: ' + err.message; }
+    e.target.value = '';
+  };
+  $('#clearMemory').onclick = () => { forget(''); episodes = []; store.set(EP_KEY, '[]'); refreshMemoryUI(); $('#memNote').textContent = 'Memória apagada.'; };
   $('#clearChat').onclick = () => {
-    history = []; cache.clear();
+    history = []; saveHistory(); cache.clear();
     log.innerHTML = '<div class="empty" id="empty">Conversa limpa. Toque no núcleo e fale.</div>';
     $('#settings').classList.remove('open');
   };
@@ -1279,14 +2181,17 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     engine = null; loadingPromise = null; loadedName = '';
     try {
       const w = await getWebLLM();
-      for (const [base] of MODELS[settings.model].tries) await w.deleteModelAllInfoInCache(idFor(base)).catch(() => {});
+      for (const [base] of MODELS[settings.model].tries) for (const sfx of ['-q4f16_1-MLC', '-q4f32_1-MLC']) await w.deleteModelAllInfoInCache(base + sfx).catch(() => {});
       $('#diag').textContent = 'Cérebro apagado do celular.';
     } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
   };
 
-  if (window.__JARVIS_TEST_ENGINE) window.__jarvisTest = { route, relevant, tryMath, setLast: p => { lastPlan = p; } };
+  if (window.__JARVIS_TEST_ENGINE) window.__jarvisTest = { looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
 
   // ================= Início =================
+  history = loadHistory();
+  // Primeiro avisa o que passou com o app fechado; depois confere a cada segundo
+  setTimeout(() => { checkAlarms(true); scheduleAlarms(); }, 1200);
   updateNet();
   const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   function addManifest() {
@@ -1316,6 +2221,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   setPhase('off');
   if (!SR) addMsg('sys', 'Este navegador não tem reconhecimento de voz. Use o Chrome no Android. Você ainda pode digitar.');
   if (!window.isSecureContext) addMsg('sys', 'Abra esta página por um endereço https:// para o microfone e o modo offline funcionarem.');
+  warmJarvisVoice();
   (async () => {
     if (await isCached()) {
       setPhase('loading');

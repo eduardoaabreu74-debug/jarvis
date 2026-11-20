@@ -1,10 +1,11 @@
 // Jarvis — guarda o app no celular para abrir e funcionar sem internet.
 // Os cérebros (IA e voz) são guardados pelas próprias bibliotecas; aqui ficam o app e as bibliotecas.
-const VERSION = 'jarvis-app-v6';
+const VERSION = 'jarvis-app-v13';
 const CORE = ['./', './index.html'];
 const LIBS = [
   'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js',
-  'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js'
+  'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js',
+  'https://cdn.jsdelivr.net/npm/@mintplex-labs/piper-tts-web@1.0.5/+esm'
 ];
 const CDN_HOSTS = ['cdn.jsdelivr.net'];
 
@@ -26,7 +27,7 @@ const png = b64 => new Response(Uint8Array.from(atob(b64), c => c.charCodeAt(0))
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(VERSION);
-    await cache.addAll(CORE);
+    await cache.addAll(CORE.map(u => new Request(u, { cache: 'reload' })));   // sempre a versão nova, nunca a do cache do navegador
     await Promise.allSettled(LIBS.map(u => cache.add(new Request(u, { mode: 'cors' }))));
     await self.skipWaiting();
   })());
@@ -42,11 +43,16 @@ self.addEventListener('activate', event => {
 
 async function networkFirst(request) {
   const cache = await caches.open(VERSION);
-  try {
-    const res = await Promise.race([fetch(request), new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 4000))]);
+  // Busca a página nova (sem usar o cache do navegador). Se a internet estiver lenta, abre a guardada
+  // e a nova continua baixando por trás: na próxima abertura ela já aparece.
+  const net = fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(res => {
     if (res && res.ok) cache.put(request, res.clone());
     return res;
+  });
+  try {
+    return await Promise.race([net, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 4000))]);
   } catch (e) {
+    net.catch(() => {});
     return (await cache.match(request, { ignoreSearch: true })) || (await cache.match('./index.html')) || Response.error();
   }
 }
