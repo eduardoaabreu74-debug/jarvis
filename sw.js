@@ -1,6 +1,7 @@
 // Jarvis — guarda o app no celular para abrir e funcionar sem internet.
 // Os cérebros (IA e voz) são guardados pelas próprias bibliotecas; aqui ficam o app e as bibliotecas.
-const VERSION = 'jarvis-app-v14';
+const APP_VERSION = 16;                       // igual ao do index.html
+const VERSION = 'jarvis-app-' + APP_VERSION;
 const CORE = ['./', './index.html'];
 const LIBS = [
   'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js',
@@ -71,6 +72,7 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin === self.location.origin) {
+    if (url.pathname.endsWith('/jarvis-version')) { event.respondWith(new Response(String(APP_VERSION), { headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } })); return; }
     if (url.pathname.endsWith('/jarvis.webmanifest')) { event.respondWith(new Response(JSON.stringify(MANIFEST), { headers: { 'Content-Type': 'application/manifest+json' } })); return; }
     if (url.pathname.endsWith('/jarvis-icon-192.png')) { event.respondWith(png(ICON_192)); return; }
     if (url.pathname.endsWith('/jarvis-icon-512.png')) { event.respondWith(png(ICON_512)); return; }

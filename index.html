@@ -31,7 +31,7 @@
   body[data-phase="listening"] .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
   body[data-phase="thinking"] .dot,body[data-phase="searching"] .dot{background:var(--warn);box-shadow:0 0 10px var(--warn)}
   body[data-phase="speaking"] .dot{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
-  .iconbtn{background:none;border:1px solid var(--line);color:var(--cyan2);border-radius:10px;width:38px;height:38px;font-size:18px;cursor:pointer}
+  .iconbtn{flex:0 0 38px;background:none;border:1px solid var(--line);color:var(--cyan2);border-radius:10px;width:38px;height:38px;font-size:18px;cursor:pointer}
 
   #log{flex:1;overflow-y:auto;padding:8px 16px 4px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}
   .msg{max-width:86%;padding:10px 14px;border-radius:14px;line-height:1.45;font-size:15px;white-space:pre-wrap;word-wrap:break-word}
@@ -40,6 +40,8 @@
   .msg.jarvis .who{display:block;font-family:var(--hud);font-weight:700;font-size:11px;letter-spacing:.25em;color:var(--cyan);margin-bottom:3px}
   .msg.jarvis .src{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
   .msg.jarvis .src a{font-size:11.5px;color:var(--cyan2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:3px 9px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msg.sys .retry{display:block;margin:10px auto 2px;background:var(--cyan);color:#012;border:none;border-radius:10px;padding:9px 16px;font:700 13px var(--hud);letter-spacing:.12em;cursor:pointer}
+  .msg.ok{align-self:center;font-size:14px;font-weight:600;color:var(--ok);background:rgba(77,255,154,.1);border:1px solid rgba(77,255,154,.45);text-align:center;max-width:94%}
   .msg.sys{align-self:center;font-size:12.5px;color:var(--warn);background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.25);text-align:center;max-width:94%}
   .empty{margin:auto;text-align:center;color:var(--dim);font-size:14px;line-height:1.6;padding:20px}
 
@@ -105,6 +107,7 @@
   .err{color:#ff9d9d;font-size:12.5px;margin-top:6px;line-height:1.45}
   .status{white-space:nowrap}
   @media (max-width:430px){ .brand{letter-spacing:.28em;font-size:19px} .status{font-size:11.5px;letter-spacing:.12em;gap:6px} }
+  @media (max-width:360px){ .brand{letter-spacing:.18em;font-size:17px} #statusText{display:none} header{padding:12px 12px 6px} }
   #installBar{position:relative;z-index:3;margin:4px 14px 6px;padding:10px 12px;border-radius:14px;display:flex;align-items:center;gap:10px;
     background:linear-gradient(90deg,rgba(62,224,255,.18),rgba(62,224,255,.06));border:1px solid rgba(62,224,255,.45);font-size:13.5px}
   #installBar[hidden]{display:none}
@@ -284,11 +287,13 @@
       </details>
 
       <div class="btns" style="margin-top:14px"><button class="primary" id="closeSettings">PRONTO</button></div>
+      <div class="note" id="appVer" style="text-align:center;margin-top:12px"></div>
     </div>
   </div>
 
 <script type="module">
   'use strict';
+  const APP_VERSION = 16;                       // muda a cada atualização (igual ao do sw.js)
   const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js';
   const $ = s => document.querySelector(s);
   const log = $('#log'), live = $('#live');
@@ -359,7 +364,7 @@
   }
   function setJarvisText(el, text) { el.querySelector('.body').textContent = text; log.scrollTop = log.scrollHeight; }
   function addSources(el, sources) {
-    const seen = new Set(), list = sources.filter(s => s && s.url && !seen.has(s.url) && seen.add(s.url));
+    const seen = new Set(), list = sources.filter(s => s && typeof s.url === 'string' && /^https?:\/\//i.test(s.url) && !seen.has(s.url) && seen.add(s.url));
     if (!list.length) return;
     const box = document.createElement('div'); box.className = 'src';
     list.slice(0, 5).forEach(s => {
@@ -444,11 +449,19 @@ self.onmessage = async e => {
     ttsPend.forEach(h => h.reject(new Error('liberado'))); ttsPend.clear();
     jarvisVoiceReady = false;
   }
+  let engineWorker = null;
+  // Desliga o cérebro. hard = travou: encerra o ajudante na hora, sem esperar ele responder
+  async function dropEngine(hard) {
+    clearTimeout(idleTimers.engine);
+    const e = engine, wk = engineWorker;
+    engine = null; loadingPromise = null; warmup = null; engineWorker = null;
+    if (!hard && e && e !== window.__JARVIS_TEST_ENGINE) { try { await Promise.race([e.unload(), new Promise(r => setTimeout(r, 5000))]); } catch (err) {} }
+    try { wk && wk.terminate(); } catch (err) {}
+  }
   async function releaseEngine() {               // cérebro: o mais pesado
     clearTimeout(idleTimers.engine);
     if (!engine || engine === window.__JARVIS_TEST_ENGINE || active) { if (engine && active) touchEngine(); return; }
-    const e = engine; engine = null; loadingPromise = null; warmup = null;
-    try { await e.unload(); } catch (err) {}
+    await dropEngine(false);
   }
   const IDLE_T = window.__JARVIS_IDLE || {};   // (só os testes mudam estes tempos)
   const STT_IDLE = IDLE_T.stt || 90 * 1000, TTS_IDLE = IDLE_T.tts || 4 * 60 * 1000, ENGINE_IDLE = IDLE_T.engine || 10 * 60 * 1000;
@@ -563,7 +576,7 @@ self.onmessage = async e => {
       const res = await sttCall('transcribe', r.audio);
       if (!active) return;
       const text = (res.text || '').trim();
-      if (!text) { setPhase('listening'); return listenLocal(); }
+      if (!text) { if (++emptyRestarts > 10) { setPhase('tap'); hint('Fiquei um tempo sem entender nada. Toque no núcleo para falar.'); return; } setPhase('listening'); return listenLocal(); }
       live.textContent = '“' + text + '”';
       finishTurn(text);
     } catch (e) {
@@ -592,8 +605,10 @@ async function getSession(onProgress) {
 }
 // Uma frase de cada vez: o motor da voz não aceita duas ao mesmo tempo
 let queue = Promise.resolve();
-self.onmessage = e => { queue = queue.then(() => handle(e.data || {})); };
-async function handle({ id, type, text }) {
+let minTok = 0;
+self.onmessage = e => { const m = e.data || {}; if (m.type === 'cancel') { minTok = Math.max(minTok, m.tok || 0); return; } queue = queue.then(() => handle(m)); };
+async function handle({ id, type, text, tok }) {
+  if (type === 'speak' && tok && tok < minTok) { self.postMessage({ id, type: 'error', message: 'cancelado' }); return; }
   try {
     if (type === 'load') { await getSession(f => self.postMessage({ id, type: 'progress', frac: f })); self.postMessage({ id, type: 'ready' }); }
     else if (type === 'speak') {
@@ -606,7 +621,8 @@ async function handle({ id, type, text }) {
 }`;
   let ttsW = null, ttsSeq = 0, jarvisVoiceReady = false, jarvisVoiceBroken = false, jarvisVoiceOnPhone = false;
   const ttsPend = new Map();
-  function ttsCall(type, text, onProgress) {
+  function ttsCancel(tok) { if (ttsW) { try { ttsW.postMessage({ type: 'cancel', tok }); } catch (e) {} } }
+  function ttsCall(type, text, onProgress, tok) {
     if (window.__JARVIS_TEST_TTS) return window.__JARVIS_TEST_TTS(type, text, onProgress);
     if (!ttsW) {
       ttsW = new Worker(URL.createObjectURL(new Blob([TTS_WORKER_CODE], { type: 'text/javascript' })), { type: 'module' });
@@ -620,7 +636,7 @@ async function handle({ id, type, text }) {
     }
     const id = ++ttsSeq;
     idleRelease('tts', null);
-    return new Promise((resolve, reject) => { ttsPend.set(id, { resolve, reject, onProgress }); ttsW.postMessage({ id, type, text }); })
+    return new Promise((resolve, reject) => { ttsPend.set(id, { resolve, reject, onProgress }); ttsW.postMessage({ id, type, text, tok }); })
       .finally(() => { if (!ttsPend.size) idleRelease('tts', TTS_IDLE, releaseTts); });
   }
   async function jarvisVoiceDownloaded() {
@@ -702,7 +718,7 @@ async function handle({ id, type, text }) {
 
   // Mesmo jeito de usar do falante do celular: push(texto) e close()
   function makeNeuralSpeaker() {
-    const token = ++speakToken;
+    const token = ++speakToken; ttsCancel(token);
     const c = audioCtx();
     let jobs = [], playing = false, closed = false, finished = false, started = false;
     let resolveDone; const done = new Promise(r => { resolveDone = r; });
@@ -714,7 +730,7 @@ async function handle({ id, type, text }) {
       const job = jobs.shift();
       let buf = null;
       try { const m = await job.p; buf = await c.decodeAudioData(m.buf); }
-      catch (e) { if (!/liberado/.test(String(e && e.message))) jarvisVoiceBroken = true; }
+      catch (e) { if (!/liberado|cancelado/.test(String(e && e.message))) jarvisVoiceBroken = true; }
       if (token !== speakToken || !active) { finish(); return; }
       if (!buf) { await speakPhone(job.text); return playNext(); }
       const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = neuralRate(); src.connect(fx.input);
@@ -726,7 +742,7 @@ async function handle({ id, type, text }) {
       push(text) {
         const parts = chunk(cleanForSpeech(text), 140, true); if (!parts.length) return;
         if (!started) { started = true; try { synth && synth.cancel(); } catch (e) {} setPhase('speaking'); }
-        parts.forEach(t => { const p = ttsCall('speak', t); p.catch(() => {}); jobs.push({ text: t, p }); });
+        parts.forEach(t => { const p = ttsCall('speak', t, null, token); p.catch(() => {}); jobs.push({ text: t, p }); });
         if (!playing) playNext();
       },
       close() { closed = true; if (!playing) finish(); return done; }
@@ -737,7 +753,7 @@ async function handle({ id, type, text }) {
   // ================= CÉREBRO LOCAL (WebLLM + WebGPU) =================
   async function detectGPU() {
     if (gpuInfo) return gpuInfo;
-    if (window.__JARVIS_TEST_ENGINE) return (gpuInfo = { ok: true, f16: true });
+    if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) return (gpuInfo = { ok: true, f16: true });
     if (!navigator.gpu) return (gpuInfo = { ok: false, why: 'Este navegador não tem WebGPU. Use o Chrome atualizado no Android 12 ou mais novo.' });
     try {
       const adapter = await navigator.gpu.requestAdapter();
@@ -747,7 +763,16 @@ async function handle({ id, type, text }) {
   }
   const useF16 = () => !!(gpuInfo && gpuInfo.f16 && !settings.forceF32);
   const idFor = base => base + (useF16() ? '-q4f16_1-MLC' : '-q4f32_1-MLC');
-  async function getWebLLM() { if (!webllm) webllm = await import(WEBLLM_URL); return webllm; }
+  // Carrega a biblioteca do cérebro; se a internet falhar, tenta de novo com outro endereço (o navegador guarda a falha do primeiro)
+  let webllmTries = 0;
+  async function getWebLLM() {
+    if (window.__JARVIS_FAKE_WEBLLM) return window.__JARVIS_FAKE_WEBLLM;
+    if (webllm) return webllm;
+    for (;;) {
+      try { webllm = await import(WEBLLM_URL + (webllmTries ? '?tentativa=' + webllmTries : '')); return webllm; }
+      catch (e) { if (++webllmTries > 3 || !navigator.onLine) throw e; await new Promise(r => setTimeout(r, 2000 * webllmTries)); }
+    }
+  }
 
   // Qual versão deste tamanho já está guardada no celular (se alguma estiver)
   // Confere direto no armazenamento do navegador, do mesmo jeito que a biblioteca faz
@@ -778,67 +803,120 @@ async function handle({ id, type, text }) {
   };
   let loadPct = 0, loadingFromNet = false;
 
-  const isFatal = e => /memory|oom|device.?lost|quota|storage|network|fetch|failed to fetch|shader-f16/i.test(String(e && (e.message || e)));
+  const errText = e => String(e && (e.message || e) || '');
+  const isFatal = e => /memory|oom|device.?lost|quota|storage|network|fetch|failed to fetch|shader-f16|download parado/i.test(errText(e));
+  const isNetErr = e => !!(e && e.stalled) || /network|fetch|load failed|connection|err_|tempo esgotado|aborted|download parado|dynamically imported/i.test(errText(e));
+  const isMemErr = e => /memory|oom|device.?lost|allocation|out of|buffer size|exceeds limit/i.test(errText(e));
+  const RETRY_BASE = IDLE_T.retry || 2500, STALL_MS = IDLE_T.stall || 120000;
+
+  // Liga um cérebro uma vez. Vigia o download: se ficar parado (internet travada), desiste dessa tentativa
+  function createEngineOnce(w, id, mb, inCache, useWorker) {
+    return new Promise((resolve, reject) => {
+      let worker = null, last = Date.now(), done = false, gotProgress = false;
+      const progress = r => {
+        last = Date.now(); gotProgress = true;
+        const p = typeof r.progress === 'number' ? r.progress : 0; loadPct = p; loadingFromNet = !inCache;
+        showLoader(true, inCache ? 'Carregando o cérebro: ' + Math.round(p * 100) + '%'
+          : 'Baixando o cérebro: ' + Math.round(p * 100) + '% (' + Math.round(p * mb) + ' de ' + mb + ' MB). Deixe o app aberto.', p);
+      };
+      const finish = (ok, val) => {
+        if (done) { if (ok) { try { val.unload(); } catch (e) {} try { worker && worker.terminate(); } catch (e) {} } return; }
+        done = true; clearInterval(dog);
+        if (!ok) { try { worker && worker.terminate(); } catch (e) {} }
+        else engineWorker = worker;
+        ok ? resolve(val) : reject(val);
+      };
+      const dog = setInterval(() => {
+        if (Date.now() - last > STALL_MS) finish(false, Object.assign(new Error('download parado'), { stalled: true, noProgress: !gotProgress }));
+      }, Math.min(5000, STALL_MS / 4));
+      if (useWorker && !window.__JARVIS_FAKE_WEBLLM) {
+        try {
+          const code = `import { WebWorkerMLCEngineHandler } from "${WEBLLM_URL}";
+const handler = new WebWorkerMLCEngineHandler();
+self.onmessage = (msg) => handler.onmessage(msg);`;
+          const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+          worker = new Worker(url, { type: 'module' }); setTimeout(() => URL.revokeObjectURL(url), 60000);
+          worker.addEventListener('error', () => finish(false, Object.assign(new Error('worker não iniciou'), { noWorker: true })));
+        } catch (e) { worker = null; }
+      }
+      Promise.resolve().then(() => worker
+        ? w.CreateWebWorkerMLCEngine(worker, id, { initProgressCallback: progress }, CHAT_OPTS)
+        : w.CreateMLCEngine(id, { initProgressCallback: progress }, CHAT_OPTS))
+        .then(eng => finish(true, eng), err => finish(false, err));
+    });
+  }
 
   function loadEngine() {
     if (engine) return Promise.resolve(engine);
     if (loadingPromise) return loadingPromise;
     loadingPromise = (async () => {
       const g = await detectGPU();
-      if (window.__JARVIS_TEST_ENGINE) { engine = window.__JARVIS_TEST_ENGINE; loadedName = 'teste'; return engine; }
       if (!g.ok) throw Object.assign(new Error(g.why), { friendly: g.why });
+      if (window.__JARVIS_TEST_ENGINE) { engine = window.__JARVIS_TEST_ENGINE; loadedName = 'teste'; return engine; }
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
       showLoader(true, 'Preparando o cérebro…', 0);
       const w = await getWebLLM();
-      const cached = await cachedChoice();
-      const order = cached ? [cached, ...MODELS[settings.model].tries.filter(t => t !== cached)] : MODELS[settings.model].tries;
-      let lastErr = null;
-      for (const [base, mb] of order) {
-        const id = idFor(base);
-        const inCache = await modelInCache(id);
-        const progress = r => {
-          const p = typeof r.progress === 'number' ? r.progress : 0; loadPct = p; loadingFromNet = !inCache;
-          showLoader(true, inCache ? 'Carregando o cérebro: ' + Math.round(p * 100) + '%'
-            : 'Baixando o cérebro: ' + Math.round(p * 100) + '% (' + Math.round(p * mb) + ' de ' + mb + ' MB)', p);
-        };
-        try {
-          let worker = null;
-          try {
-            const code = `import { WebWorkerMLCEngineHandler } from "${WEBLLM_URL}";
-const handler = new WebWorkerMLCEngineHandler();
-self.onmessage = (msg) => handler.onmessage(msg);`;
-            worker = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })), { type: 'module' });
-          } catch (e) { worker = null; }
-          engine = worker
-            ? await w.CreateWebWorkerMLCEngine(worker, id, { initProgressCallback: progress }, CHAT_OPTS)
-            : await w.CreateMLCEngine(id, { initProgressCallback: progress }, CHAT_OPTS);
-          loadedName = base; cachedMemo = null; loadingFromNet = false;
-          showLoader(false);
-          touchEngine();
-          // Aquece o cérebro em segundo plano: a primeira resposta de verdade sai mais rápida
-          warmupBroken = false;
-          warmup = engine.chat.completions.create({ messages: [{ role: 'user', content: 'Responda apenas com a palavra: pronto' }], max_tokens: 6, temperature: 0, extra_body: { enable_thinking: false } })
-            .then(r => { if (looksBroken(stripThink(r.choices[0].message.content), true)) warmupBroken = true; })
-            .catch(() => {}).finally(() => { warmup = null; });
-          return engine;
-        } catch (e) {
-          lastErr = e; engine = null;
-          if (isFatal(e)) break;          // falta de memória/espaço/internet: não adianta tentar outra versão
+      const run = async () => {
+        const cached = await cachedChoice();
+        const order = cached ? [cached, ...MODELS[settings.model].tries.filter(t => t !== cached)] : MODELS[settings.model].tries;
+        let lastErr = null;
+        for (const [base, mb] of order) {
+          const id = idFor(base);
+          let attempt = 0, useWorker = true;
+          for (;;) {
+            const inCache = await modelInCache(id);
+            try {
+              engine = await createEngineOnce(w, id, mb, inCache, useWorker);
+              lastErr = null; break;
+            } catch (e) {
+              lastErr = e; engine = null;
+              // O ajudante em segundo plano não ligou: tenta direto, sem ele
+              if (useWorker && e.noWorker) { useWorker = false; continue; }
+              // Internet travou ou caiu: espera um pouco e continua de onde parou (o que já baixou fica guardado)
+              if (isNetErr(e) && navigator.onLine && ++attempt <= 4) {
+                showLoader(true, 'A conexão falhou. Tentando de novo (' + attempt + ' de 4)… O que já baixou está guardado.', loadPct);
+                await new Promise(r => setTimeout(r, RETRY_BASE * attempt));
+                continue;
+              }
+              break;
+            }
+          }
+          if (engine) {
+            loadedName = base; cachedMemo = null; loadingFromNet = false;
+            showLoader(false);
+            touchEngine();
+            // Aquece o cérebro em segundo plano: a primeira resposta de verdade sai mais rápida
+            warmupBroken = false;
+            warmup = engine.chat.completions.create({ messages: [{ role: 'user', content: 'Responda apenas com a palavra: pronto' }], max_tokens: 6, temperature: 0, extra_body: { enable_thinking: false } })
+              .then(r => { if (looksBroken(stripThink(r.choices[0].message.content), true)) warmupBroken = true; })
+              .catch(() => {}).finally(() => { warmup = null; });
+            return engine;
+          }
+          if (isMemErr(lastErr)) break;
+          if (isFatal(lastErr)) break;          // sem espaço / sem internet: não adianta tentar outra versão
         }
-      }
-      throw lastErr || new Error('falha ao carregar');
+        // Não coube na memória do celular: troca sozinho para um tamanho menor e baixa ele
+        if (isMemErr(lastErr) && settings.model !== 'leve') {
+          const from = settings.model === 'forte' ? 'Forte' : 'Padrão';
+          settings.model = settings.model === 'forte' ? 'padrao' : 'leve'; saveSettings(); cachedMemo = null;
+          addMsg('sys', 'O cérebro ' + from + ' não coube na memória deste celular. Troquei para um menor e vou preparar ele agora.');
+          return run();
+        }
+        throw lastErr || new Error('falha ao carregar');
+      };
+      return run();
     })();
     return loadingPromise.catch(e => { loadingPromise = null; engine = null; showLoader(false); throw e; });
   }
 
   async function fixBrokenBrain() {
     const wasF16 = useF16(), oldId = loadedName && loadedName !== 'teste' ? idFor(loadedName) : null;
-    const e = engine; engine = null; loadingPromise = null; warmup = null; warmupBroken = false; cachedMemo = null;
-    try { e && e !== window.__JARVIS_TEST_ENGINE && await e.unload(); } catch (err) {}
+    warmupBroken = false; cachedMemo = null;
+    await dropEngine(false);
     if (window.__JARVIS_TEST_ENGINE) engine = null;
     if (wasF16) {
       settings.forceF32 = true; saveSettings();
-      try { const w = await getWebLLM(); if (oldId && w.deleteModelAllInfoInCache) await w.deleteModelAllInfoInCache(oldId); } catch (err) {}
+      if (oldId) getWebLLM().then(w => w.deleteModelAllInfoInCache && w.deleteModelAllInfoInCache(oldId)).catch(() => {});   // apaga a versão que não funciona, por trás
       return 'Desculpe, senhor. O cérebro estava falando coisas sem sentido neste celular. Já troquei para uma versão compatível com a sua placa de vídeo. Na próxima pergunta, toque em baixar para eu buscar essa versão (só uma vez).';
     }
     return 'Desculpe, senhor. O cérebro está falando coisas sem sentido neste celular. Escolha o tamanho Leve nas Configurações e tente de novo.';
@@ -850,7 +928,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (m.includes('shader-f16')) return 'Seu celular não suporta essa versão do cérebro. Tente o tamanho Leve.';
     if (/memory|oom|device.?lost|buffer/.test(m)) return 'Faltou memória no celular para esse cérebro. Feche outros apps ou escolha um tamanho menor nas configurações.';
     if (/quota|storage/.test(m)) return 'Falta espaço no celular para guardar o cérebro. Libere espaço e tente de novo.';
-    if (/fetch|network/.test(m)) return 'A internet caiu durante o download. Tente de novo: ele continua de onde parou.';
+    if (/download parado/.test(m)) return 'O download travou porque a internet ficou instável. Toque em Tentar de novo: ele continua de onde parou.';
+    if (/fetch|network|dynamically imported|load failed/.test(m)) return 'A internet caiu durante o download. Toque em Tentar de novo: ele continua de onde parou.';
     return 'Não consegui ligar o cérebro (' + (e && e.message || e) + ').';
   }
 
@@ -871,8 +950,22 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   let warmupBroken = false;
   const stripThink = t => String(t || '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
 
+  const GEN_STALL = IDLE_T.gen || 60000;
+  const hungError = () => Object.assign(new Error('cérebro travou'), { hung: true });
   async function generate(messages, opts = {}) {
-    if (warmup) await warmup;
+    // Vigia: se o cérebro ficar sem responder (placa de vídeo travou), reinicia e libera o app
+    let last = Date.now(), dog = null;
+    const stalled = new Promise((_, rej) => { dog = setInterval(() => { if (Date.now() - last > GEN_STALL) rej(hungError()); }, 1000); });
+    stalled.catch(() => {});
+    const race = p => Promise.race([p, stalled]);
+    try { return await generateInner(messages, opts, race, () => { last = Date.now(); }); }
+    catch (e) {
+      if (e && e.hung) { try { engine && engine.interruptGenerate(); } catch (err) {} dropEngine(true); }
+      throw e;
+    } finally { clearInterval(dog); }
+  }
+  async function generateInner(messages, opts, race, tick) {
+    if (warmup) await race(warmup);
     if (warmupBroken) throw brokenError();
     const req = {
       messages,
@@ -884,10 +977,15 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     };
     if (opts.onText) {
       req.stream = true;
-      const chunks = await engine.chat.completions.create(req);
+      const eng = engine;
+      const chunks = await race(eng.chat.completions.create(req));
+      const it = chunks[Symbol.asyncIterator]();
       let txt = '';
-      for await (const ch of chunks) {
-        if (opts.turn !== undefined && opts.turn !== turnId) break;
+      for (;;) {
+        const step = await race(it.next()); tick();
+        if (step.done) break;
+        const ch = step.value;
+        if (opts.turn !== undefined && opts.turn !== turnId) { try { eng.interruptGenerate(); } catch (e) {} break; }   // outra pergunta chegou: para esta na hora
         txt += (ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content) || '';
         const clean = stripThink(txt);
         if (looksBroken(clean, false, opts.foreign)) { try { engine.interruptGenerate(); } catch (e) {} throw brokenError(); }
@@ -898,8 +996,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       opts.onText(out);
       return out;
     }
-    const r = await engine.chat.completions.create(req);
-    const out = stripThink(r.choices[0].message.content);
+    const r = await race(engine.chat.completions.create(req));
+    const out = stripThink(((r.choices || [])[0] || {}).message ? r.choices[0].message.content : '');
     if (looksBroken(out, false, opts.foreign)) throw brokenError();
     return out;
   }
@@ -908,7 +1006,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const SMALLTALK_RE = /^(oi|ola|ola jarvis|oi jarvis|e ai|eai|bom dia|boa tarde|boa noite|tudo bem|tudo bom|como vai|obrigad[oa]|valeu|beleza|blz|show|legal|ok|certo|entendi|perfeito|muito bem|parabens)\b/;
   const TIME_RE = /\b(que horas|que dia e hoje|qual a data|data de hoje|dia da semana)\b/;
-  const WEATHER_RE = /\b(clima|previsao( do tempo)?|temperatura|vai chover|chover|chovendo|chuva|calor|frio|quantos graus|o tempo (hoje|amanha|agora|la fora))\b/;
+  const WEATHER_RE = /\b(clima|previsao( do tempo)?|temperatura|vai chover|chover|chovendo|chuva|calor|frio|quantos graus|o tempo (hoje|amanha|agora|la fora|em|no|na)|como (esta|ta|vai (estar|ficar)) o tempo|tempo (hoje|amanha))\b/;
   const CURRENCY_RE = /\b(cotacao|cambio|quanto (esta|ta|custa|vale) o (dolar|euro|peso|iene|yuan|franco|libra)|(dolar|euro|libra|peso argentino|iene|yuan|franco suico)( hoje| agora)?$)/;
   const SEARCH_RE = /\b(hoje|ontem|agora|atual|atualmente|ultim[oa]s?|recente|noticias?|preco|placar|resultado|quem ganhou|jogo|campeonato|eleicao|lancamento|quem e|quem foi|quando|onde fica|quantos|qual e a capital|como funciona|o que e|o que foi|20[2-3]\d)\b/;
   const URL_RE = /\b((?:https?:\/\/)?(?:[\w-]+\.)+(?:com|br|org|net|gov|edu|io|info|me|tv)(?:\.br)?(?:\/[^\s]*)?)/i;
@@ -990,7 +1088,11 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (follow && lastPlan.acao === 'clima' && !CURRENCY_RE.test(n)) return { acao: 'clima', cidade: extractCity(q) || lastPlan.cidade };
     if (follow && lastPlan.acao === 'cotacao') return { acao: 'cotacao', moeda: currencyFrom(q, lastPlan.moeda) };
 
-    if (WEATHER_RE.test(n)) return { acao: 'clima', cidade: extractCity(q) };
+    if (WEATHER_RE.test(n)) {
+      let cidade = extractCity(q);
+      if (!cidade && /\b(clima|tempo|previsao|temperatura|graus)\b/.test(n)) { const m = q.replace(/[?!.]+\s*$/, '').replace(/\s+(hoje|amanhã|amanha|agora|essa semana|esta semana|depois de amanhã)$/i, '').match(/\b(?:em|no|na|de|para)\s+([a-zà-ú][a-zà-ú' -]{2,40})$/i); if (m && !/^(hoje|amanh|agora|tempo|chuva|frio|calor)/i.test(m[1])) cidade = m[1].trim(); }
+      return { acao: 'clima', cidade };
+    }
     if (CURRENCY_RE.test(n) && !/bitcoin|cripto|acao|acoes|bolsa/.test(n)) return { acao: 'cotacao', moeda: currencyFrom(q) };
     const url = q.match(URL_RE);
     if (url && /\b(le|leia|ler|abre|abrir|abra|resum|site|pagina|link)/.test(n)) return { acao: 'ler', url: url[1] };
@@ -1013,7 +1115,9 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   async function cached(key, fn, ttl = 10 * 60 * 1000) {
     const hit = cache.get(key);
     if (hit && Date.now() - hit.t < ttl) return hit.v;
-    const v = await fn(); cache.set(key, { t: Date.now(), v });
+    const v = await fn();
+    if (Array.isArray(v) && !v.length) return v;                     // vazio: não guarda
+    cache.set(key, { t: Date.now(), v });
     if (cache.size > 40) cache.delete(cache.keys().next().value);   // guarda só as 40 pesquisas mais recentes
     return v;
   }
@@ -1110,12 +1214,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const f = await getJSON('https://api.open-meteo.com/v1/forecast?latitude=' + p.latitude + '&longitude=' + p.longitude +
       '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m' +
       '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=3');
-    const c = f.current || {}, d = f.daily || {}, r = Math.round;
+    if (!f || !f.current || typeof f.current.temperature_2m !== 'number') throw new Error('o serviço de clima não respondeu direito');
+    const c = f.current, d = f.daily || {}, r = x => (typeof x === 'number' ? Math.round(x) : '?');
     const days = ['Hoje', 'Amanhã', 'Depois de amanhã'];
     let txt = 'Clima em ' + p.name + (p.admin1 ? ', ' + p.admin1 : '') + '. Agora: ' + r(c.temperature_2m) + ' graus, sensação de ' +
       r(c.apparent_temperature) + ' graus, ' + (WMO[c.weather_code] || 'tempo variável') + ', umidade de ' + r(c.relative_humidity_2m) +
       ' por cento, vento de ' + r(c.wind_speed_10m) + ' quilômetros por hora.';
-    (d.time || []).forEach((_, i) => {
+    (d.time || []).slice(0, 3).forEach((_, i) => {
       txt += ' ' + days[i] + ': mínima de ' + r(d.temperature_2m_min[i]) + ', máxima de ' + r(d.temperature_2m_max[i]) + ' graus, ' +
         (WMO[d.weather_code[i]] || 'tempo variável') + ', chance de chuva de ' + r(d.precipitation_probability_max[i] || 0) + ' por cento.';
     });
@@ -1175,9 +1280,9 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   let memories = (() => {
     try {
       const v2 = JSON.parse(store.get(MEM_KEY, 'null'));
-      if (Array.isArray(v2)) return v2;
+      if (Array.isArray(v2)) return v2.filter(m => m && typeof m.text === 'string' && m.text).map(m => ({ id: m.id || Math.random(), text: m.text, cat: typeof m.cat === 'string' ? m.cat : null, t: isFinite(m.t) ? m.t : Date.now(), n: isFinite(m.n) ? m.n : 0 }));
       const old = JSON.parse(store.get('jarvis-memoria', '[]')) || [];   // versão antiga: só textos
-      return old.map((text, i) => ({ id: Date.now() + i, text, cat: null, t: Date.now(), n: 0 }));
+      return (Array.isArray(old) ? old : []).filter(t => typeof t === 'string' && t).map((text, i) => ({ id: Date.now() + i, text, cat: null, t: Date.now(), n: 0 }));
     } catch (e) { return []; }
   })();
   let memSaveTimer = null;
@@ -1271,7 +1376,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
   // ----- Lembrança de conversas: o Jarvis guarda o resumo de cada conversa e lembra quando o assunto volta -----
   const EP_KEY = 'jarvis-episodios', EP_MAX = 300;
-  let episodes = (() => { try { return JSON.parse(store.get(EP_KEY, '[]')) || []; } catch (e) { return []; } })();
+  const okEp = e => e && typeof e.q === 'string' && typeof e.a === 'string' && isFinite(e.t);
+  let episodes = (() => { try { const a = JSON.parse(store.get(EP_KEY, '[]')); return Array.isArray(a) ? a.filter(okEp) : []; } catch (e) { return []; } })();
   function saveEpisode(q, a, kind) {
     if (!q || /^(hora|bateria|lanterna|timer_cancelar|timer_listar|compartilhar|memorias|esquecer)$/.test(kind || '')) return;
     episodes.push({ t: Date.now(), q: short(q, 140), a: short(a.replace(/\s+/g, ' '), 220) });
@@ -1309,7 +1415,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   function loadHistory() {
     try {
       const h = JSON.parse(store.get('jarvis-historico', '{}'));
-      if (h && h.t && Date.now() - h.t < 12 * 3600 * 1000 && Array.isArray(h.items)) return h.items.slice(-6);
+      if (h && h.t && Date.now() - h.t < 12 * 3600 * 1000 && Array.isArray(h.items)) return h.items.filter(x => x && typeof x.q === 'string' && typeof x.a === 'string').slice(-6);
     } catch (e) {}
     return [];
   }
@@ -1355,14 +1461,14 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
   function addActionButton(el, act) {
     const box = document.createElement('div'); box.className = 'src';
-    const a = document.createElement('a'); a.href = act.url; a.target = '_blank'; a.rel = 'noopener'; a.className = 'actbtn';
+    const a = document.createElement('a'); a.href = /^(https?:|tel:)/i.test(act.url) ? act.url : '#'; a.target = '_blank'; a.rel = 'noopener'; a.className = 'actbtn';
     a.textContent = '▶ Abrir ' + act.nome.replace(/^o /, '');
     box.appendChild(a); el.appendChild(box); log.scrollTop = log.scrollHeight;
     return a;
   }
 
   // Timers, lembretes e despertador: ficam guardados e avisam falando e vibrando (com o app aberto)
-  let alarms = (() => { try { return JSON.parse(store.get('jarvis-alarmes', '[]')) || []; } catch (e) { return []; } })();
+  let alarms = (() => { try { const a = JSON.parse(store.get('jarvis-alarmes', '[]')); return Array.isArray(a) ? a.filter(x => x && isFinite(x.at)) : []; } catch (e) { return []; } })();
   const saveAlarms = () => store.set('jarvis-alarmes', JSON.stringify(alarms));
   const NUMW = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12, quinze: 15, vinte: 20, trinta: 30, quarenta: 40, meia: 0.5 };
   const numOf = w => NUMW[w] ?? parseFloat(String(w).replace(',', '.'));
@@ -1445,9 +1551,12 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       : a.kind === 'lembrete' ? 'Senhor, ' + (late ? 'lembrete atrasado' : 'lembrete') + ': ' + swapPerson(a.text) + '.'
       : 'Senhor, o timer de ' + a.label + ' terminou.';
     addMsg('jarvis', '⏰ ' + text);
-    const wasActive = active; active = true;
+    const wasActive = active, wasListening = phase === 'listening';
+    if (wasListening) killRecognizer();
+    active = true;
     const sp = newSpeaker(); sp.push(text); await sp.close();
     if (!wasActive) { active = false; setPhase('off'); }
+    else if (wasListening && active && mode === 'voice' && phase !== 'thinking' && phase !== 'searching') startListening();
   }
   let alarmTimer = null;
   function scheduleAlarms() {                    // acorda só quando o próximo aviso vence (economiza bateria)
@@ -1456,7 +1565,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const wait = Math.max(200, Math.min(alarms[0].at - Date.now(), 60 * 1000));
     alarmTimer = setTimeout(() => { checkAlarms(false); scheduleAlarms(); }, wait);
   }
-  function addAlarm(plan) { alarms.push({ at: plan.at, kind: plan.kind, text: plan.text || '', label: plan.label }); alarms.sort((a, b) => a.at - b.at); saveAlarms(); scheduleAlarms(); }
+  function addAlarm(plan) { if (!isFinite(plan.at)) return; alarms.push({ at: plan.at, kind: plan.kind, text: plan.text || '', label: plan.label }); alarms.sort((a, b) => a.at - b.at); saveAlarms(); scheduleAlarms(); }
   // Confere os avisos a cada segundo; ao abrir o app, avisa os que passaram enquanto ele estava fechado
   function checkAlarms(opening) {
     const now = Date.now(); const due = alarms.filter(a => a.at <= now);
@@ -1608,9 +1717,10 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         : 'Estou sem internet e meu cérebro ainda está ligando, senhor. Pergunte de novo em instantes.';
     }
     const body = material.replace(/^MATERIAL \(consultado agora\):\n/, '');
+    if (plan.acao === 'clima' && /nao disse a cidade/.test(norm(body))) return 'Para qual cidade, senhor? Diga, por exemplo: clima em Salvador.';
     if (plan.acao === 'clima') return (body.match(/[^.]+\./g) || [body]).slice(0, 3).map(x => x.trim()).join(' ');
     if (plan.acao === 'cotacao') return body.replace(/^Cotação: /, 'A cotação é ').replace(/\s*\(atualizada[^)]*\)/, '').trim();
-    const first = (body.split('\n')[0] || '').replace(/^- /, '');
+    const first = (body.split('\n')[0] || '').replace(/^- /, '').replace(/^\[Página\] \S+: /, '');
     const text = first.includes('): ') ? first.slice(first.indexOf('): ') + 3) : first;
     const pick = (relevant(text, q, 320).match(/[^.!?]+[.!?]+/g) || [text]).slice(0, 2).join(' ').trim();
     return pick ? 'Encontrei isto, senhor: ' + short(pick, 320) : 'Não encontrei uma resposta clara, senhor.';
@@ -1832,7 +1942,15 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       if (speaker && myTurn === turnId) speaker.push(raw.trim() ? raw.slice(spokenUpTo) : reply);
     } catch (e) {
       if (myTurn !== turnId || !active) { bubble.remove(); return; }
-      reply = e && e.broken ? await fixBrokenBrain() : engineErrorText(e); sources = [];
+      if (e && e.broken) reply = await fixBrokenBrain();
+      else if (e && e.hung) reply = 'Meu cérebro travou, senhor, então eu reiniciei ele. Pode perguntar de novo.';
+      else if (isMemErr(e)) {
+        dropEngine(true);
+        if (settings.model !== 'leve') { settings.model = settings.model === 'forte' ? 'padrao' : 'leve'; saveSettings(); cachedMemo = null; }
+        reply = 'Faltou memória no celular durante a resposta, senhor. Reiniciei o cérebro' + (settings.model === 'leve' ? ' no tamanho Leve' : '') + '. Pode perguntar de novo.';
+      }
+      else reply = engineErrorText(e);
+      sources = [];
       speaker = newSpeaker(); speaker.push(reply);
     }
     if (myTurn !== turnId || !active) return;
@@ -1893,10 +2011,10 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     silenceTimer = setTimeout(() => { if (rec) { try { rec.stop(); } catch (e) {} } }, settings.silence * 1000);
   }
   function killRecognizer() { clearTimeout(silenceTimer); if (rec) { const r = rec; rec = null; try { r.abort(); } catch (e) {} } if (recorder) recorder.cancel(); }
-  const STOP_RE = /^(jarvis[,!. ]*)?(encerrar|encerra|desligar|desliga|parar|pode parar|tchau|até logo|até mais)([,!. ]*jarvis)?[.!]*$/i;
+  const STOP_RE = /^(jarvis[,!. ]*)?(encerrar|encerra|desligar|desliga|parar|pode parar|para de falar|pare de falar|cala a boca|fica quieto|silencio|chega|ja chega|so isso|e so isso|era so isso|tchau|tchau jarvis|ate logo|ate mais|valeu,? tchau|obrigado,? tchau)([,!. ]*jarvis)?[.!]*$/;
   async function finishTurn(said) {
     heardFinal = ''; heardInterim = ''; live.textContent = '';
-    if (STOP_RE.test(said.trim())) {
+    if (STOP_RE.test(norm(said.trim()))) {
       addMsg('user', said);
       const bye = 'Até logo, senhor. Estarei aqui quando precisar.';
       addMsg('jarvis', bye);
@@ -1951,7 +2069,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   function stopAll() {
     active = false; turnId++;
     killRecognizer();
-    speakToken++;
+    speakToken++; ttsCancel(speakToken);
     try { synth && synth.cancel(); } catch (e) {}
     try { currentNeural && currentNeural.stop(); } catch (e) {} currentNeural = null;
     try { engine && engine.interruptGenerate && engine.interruptGenerate(); } catch (e) {}
@@ -1962,19 +2080,21 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   // ================= Boas-vindas / download =================
   function autoModel() {
     const mem = navigator.deviceMemory || 0;
-    return mem && mem <= 3 ? 'leve' : 'padrao';
+    return mem && mem <= 4 ? 'leve' : 'padrao';      // até 4 GB de memória: o Leve baixa rápido e cabe com folga
   }
   async function openWelcome() {
     const g = await detectGPU();
     if (!localStorage.getItem('jarvis-model-chosen')) { settings.model = autoModel(); saveSettings(); }
     const m = MODELS[settings.model];
     $('#modelAdvice').textContent = 'Vai baixar cerca de ' + (Math.round((m.tries[0][1] + 145) / 100) / 10).toString().replace('.', ',') + ' GB. Leva alguns minutos.';
-    $('#gpuErr').textContent = g.ok ? '' : g.why;
+    $('#gpuErr').textContent = g.ok ? '' : g.why + ' Sem isso o cérebro local não roda neste celular, mas o Jarvis funciona no modo rápido, pesquisando na internet.';
     $('#downloadBtn').disabled = !g.ok;
+    $('#downloadBtn').style.display = g.ok ? '' : 'none';
+    $('#welcomeLater').textContent = g.ok ? 'DEPOIS' : 'ENTENDI';
     $('#welcome').classList.add('open');
   }
-  let welcomeLater = false;               // tocou em "Depois": o Jarvis funciona no modo rápido sem ficar pedindo
-  $('#welcomeLater').onclick = () => { welcomeLater = true; $('#welcome').classList.remove('open'); addMsg('sys', 'Tudo bem. Enquanto isso eu respondo no modo rápido, pesquisando na internet. Quando quiser me deixar inteligente e funcionando sem internet, toque na engrenagem ⚙ e em PREPARAR AGORA.'); };
+  let welcomeLater = Date.now() - Number(store.get('jarvis-depois', '0')) < 864e5;               // tocou em "Depois": o Jarvis funciona no modo rápido sem ficar pedindo
+  $('#welcomeLater').onclick = () => { welcomeLater = true; store.set('jarvis-depois', String(Date.now())); $('#welcome').classList.remove('open'); addMsg('sys', 'Tudo bem. Enquanto isso eu respondo no modo rápido, pesquisando na internet. Quando quiser me deixar inteligente e funcionando sem internet, toque na engrenagem ⚙ e em PREPARAR AGORA.'); };
 
   // Baixa o cérebro e a voz offline, testa os dois, e avisa quando está pronto
   async function prepareAll() {
@@ -2002,7 +2122,10 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       }
     } catch (e) {
       showLoader(false); if (!active) { setPhase('off'); hint(''); keepAwake(false); }
-      addMsg('sys', engineErrorText(e) + ' Toque no núcleo para tentar de novo.');
+      const m = addMsg('sys', engineErrorText(e));
+      const d = document.createElement('div'); d.className = 'note'; d.style.marginTop = '6px'; d.textContent = 'Detalhe técnico: ' + short(errText(e), 160); m.appendChild(d);
+      const b = document.createElement('button'); b.textContent = 'TENTAR DE NOVO'; b.className = 'retry';
+      b.onclick = () => { b.disabled = true; prepareAll(); }; m.appendChild(b);
       return;
     }
     let voiceOk = false;
@@ -2045,11 +2168,11 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     e.preventDefault();
     const inp = $('#typeInput'); const q = inp.value.trim();
     if (!q) return;
-    if (['thinking', 'searching'].includes(phase) && active) { hint('Um instante, senhor, ainda estou respondendo.'); return; }
+    if (['thinking', 'searching', 'loading'].includes(phase) && active) { turnId++; try { engine && engine.interruptGenerate(); } catch (err) {} }   // pergunta nova: deixa a anterior
     if (!engine && !loadingPromise && !welcomeLater && !(await isCached())) { openWelcome(); return; }
     inp.value = '';
     killRecognizer();
-    speakToken++; try { synth && synth.cancel(); } catch (err) {} try { currentNeural && currentNeural.stop(); } catch (err) {}
+    speakToken++; ttsCancel(speakToken); try { synth && synth.cancel(); } catch (err) {} try { currentNeural && currentNeural.stop(); } catch (err) {}
     unlockSpeech();
     if (!active) { active = true; mode = 'text'; }
     ask(q);
@@ -2065,8 +2188,6 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       }
     } else {
       clearTimeout(hideTimer);
-      if (!engine && !loadingPromise && settings.freeMem && !window.__JARVIS_TEST_ENGINE)
-        isCached().then(c => { if (c && !engine && !loadingPromise) loadEngine().catch(() => {}); });
     }
   });
 
@@ -2096,8 +2217,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     try { localStorage.setItem('jarvis-model-chosen', '1'); } catch (e) {}
     stopAll();
     settings.model = ms.value; saveSettings(); cachedMemo = null;
-    const old = engine; engine = null; loadingPromise = null; loadedName = '';
-    try { old && old !== window.__JARVIS_TEST_ENGINE && await old.unload(); } catch (e) {}
+    loadedName = ''; await dropEngine(false);
     if (await isCached()) loadEngine().catch(e => addMsg('sys', engineErrorText(e)));
   };
   const es = $('#engineSel'), fxs = $('#fxSel');
@@ -2218,23 +2338,24 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       const d = JSON.parse(await f.text());
       if (!d || !Array.isArray(d.memorias)) throw new Error('arquivo inválido');
       const seen = new Set(memories.map(m => norm(m.text)));
-      d.memorias.forEach(m => { if (m && m.text && !seen.has(norm(m.text))) { memories.push(m); seen.add(norm(m.text)); } });
+      d.memorias.forEach(m => { if (m && typeof m.text === 'string' && m.text && !seen.has(norm(m.text))) { memories.push({ id: Date.now() + Math.random(), text: m.text.slice(0, 180), cat: typeof m.cat === 'string' ? m.cat : null, t: isFinite(m.t) ? m.t : Date.now(), n: 0 }); seen.add(norm(m.text)); } });
+      if (memories.length > MEM_MAX) memories = memories.slice(-MEM_MAX);
       saveMemories();
-      if (Array.isArray(d.conversas)) { const ts = new Set(episodes.map(x => x.t)); episodes = episodes.concat(d.conversas.filter(x => x && !ts.has(x.t))).sort((a, b) => a.t - b.t).slice(-EP_MAX); store.set(EP_KEY, JSON.stringify(episodes)); }
+      if (Array.isArray(d.conversas)) { const ts = new Set(episodes.map(x => x.t)); episodes = episodes.concat(d.conversas.filter(x => okEp(x) && !ts.has(x.t))).sort((a, b) => a.t - b.t).slice(-EP_MAX); store.set(EP_KEY, JSON.stringify(episodes)); }
       refreshMemoryUI(); $('#memSummary').textContent = 'Memória restaurada: ' + memories.length + ' lembrança(s).';
     } catch (err) { $('#memSummary').textContent = 'Não consegui restaurar: ' + err.message; }
     e.target.value = '';
   };
-  $('#clearMemory').onclick = () => { forget(''); episodes = []; store.set(EP_KEY, '[]'); refreshMemoryUI(); $('#memNote').textContent = 'Memória apagada.'; };
+  $('#clearMemory').onclick = () => { if (!confirm('Apagar tudo o que o Jarvis sabe sobre você e as conversas guardadas?')) return; forget(''); episodes = []; store.set(EP_KEY, '[]'); refreshMemoryUI(); $('#memNote').textContent = 'Memória apagada.'; };
   $('#clearChat').onclick = () => {
     history = []; saveHistory(); cache.clear();
     log.innerHTML = '<div class="empty" id="empty">Conversa limpa. Toque no núcleo e fale.</div>';
     $('#settings').classList.remove('open');
   };
   $('#deleteModel').onclick = async () => {
+    if (!confirm('Apagar o cérebro do celular? Para usar de novo vai precisar baixar outra vez (mais de 1 GB).')) return;
     stopAll();
-    try { engine && engine !== window.__JARVIS_TEST_ENGINE && await engine.unload(); } catch (e) {}
-    engine = null; loadingPromise = null; loadedName = ''; cachedMemo = null;
+    await dropEngine(false); loadedName = ''; cachedMemo = null;
     try {
       const w = await getWebLLM();
       for (const [base] of MODELS[settings.model].tries) for (const sfx of ['-q4f16_1-MLC', '-q4f32_1-MLC']) await w.deleteModelAllInfoInCache(base + sfx).catch(() => {});
@@ -2242,9 +2363,19 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
   };
 
-  if (window.__JARVIS_TEST_ENGINE) window.__jarvisTest = { quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
+  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
 
   // ================= Início =================
+  // Atualizou? Avisa uma vez: "Atualização concluída com sucesso"
+  (() => {
+    const prev = store.get('jarvis-versao', '');
+    const usedBefore = prev || store.get('jarvis-local-settings', '') || store.get('jarvis-historico', '') || store.get('jarvis-memoria2', '');
+    if (prev !== String(APP_VERSION)) {
+      store.set('jarvis-versao', String(APP_VERSION));
+      if (usedBefore) addMsg('ok', '✓ Atualização concluída com sucesso! O Jarvis está na versão ' + APP_VERSION + '.');
+    }
+  })();
+  $('#appVer').textContent = 'Jarvis versão ' + APP_VERSION;
   history = loadHistory();
   // Primeiro avisa o que passou com o app fechado; depois confere a cada segundo
   setTimeout(() => { checkAlarms(true); scheduleAlarms(); }, 1200);
@@ -2257,10 +2388,20 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     });
   }
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    let swReg = null;
+    navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
     // O manifesto (nome e ícone do app) vem do sw.js: liga assim que ele estiver ativo
-    if (navigator.serviceWorker.controller) addManifest();
-    else navigator.serviceWorker.addEventListener('controllerchange', addManifest, { once: true });
+    let hadController = !!navigator.serviceWorker.controller;
+    if (hadController) addManifest();
+    navigator.serviceWorker.addEventListener('controllerchange', async () => {
+      if (!hadController) { hadController = true; addManifest(); return; }
+      // Chegou uma versão nova com o app aberto: recarrega assim que o Jarvis estiver parado
+      try { const v = (await (await fetch('jarvis-version', { cache: 'no-store' })).text()).trim(); if (!/^\d+$/.test(v) || v === String(APP_VERSION)) return; } catch (e) { return; }
+      const go = () => { if (!active && !loadingFromNet) location.reload(); else setTimeout(go, 3000); };
+      go();
+    });
+    // O app fica aberto em segundo plano por dias: ao voltar para ele, confere se há atualização
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && swReg) swReg.update().catch(() => {}); });
   }
   let installEvt = null;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!isInstalled()) $('#installBar').hidden = false; });
@@ -2279,19 +2420,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   if (!window.isSecureContext) addMsg('sys', 'Abra esta página por um endereço https:// para o microfone e o modo offline funcionarem.');
   jarvisVoiceDownloaded().then(v => { if (v) jarvisVoiceOnPhone = true; });   // só confere; a voz liga no primeiro toque
   const whenIdle = fn => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 2500 }) : setTimeout(fn, 1200));
+  // O cérebro liga só quando você usa (tocar no núcleo ou na caixa de texto): nada pesado acontece "do nada"
   whenIdle(async () => {
-    if (await isCached()) {
-      if (!engine && !loadingPromise) loadEngine().catch(e => addMsg('sys', engineErrorText(e)));
-    } else if (!window.__JARVIS_TEST_ENGINE) {
-      const conn = navigator.connection || {};
-      const g = await detectGPU();
-      if (g.ok && navigator.onLine && conn.type === 'wifi' && !conn.saveData) {
-        // No Wi-Fi: prepara sozinho, como um jogo baixando os arquivos na primeira vez
-        if (!localStorage.getItem('jarvis-model-chosen')) { settings.model = autoModel(); saveSettings(); }
-        addMsg('sys', 'Primeira vez aqui: estou me preparando sozinho pelo Wi‑Fi. Leva alguns minutos, deixe o app aberto.');
-        prepareAll();
-      } else openWelcome();
-    }
+    if (window.__JARVIS_TEST_ENGINE) return;
+    if (!(await isCached()) && !welcomeLater) openWelcome();
+  });
+  $('#typeInput').addEventListener('focus', () => {
+    if (!engine && !loadingPromise) isCached().then(c => { if (c && !engine && !loadingPromise) loadEngine().catch(() => {}); });
   });
 </script>
 </body>
