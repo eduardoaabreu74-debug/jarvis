@@ -1,6 +1,6 @@
 // Jarvis — guarda o app no celular para abrir e funcionar sem internet.
 // Os cérebros (IA e voz) são guardados pelas próprias bibliotecas; aqui ficam o app e as bibliotecas.
-const APP_VERSION = 26;                       // igual ao do index.html
+const APP_VERSION = 28;                       // igual ao do index.html
 const VERSION = 'jarvis-app-' + APP_VERSION;
 const CORE = ['./', './index.html'];
 const LIBS = [

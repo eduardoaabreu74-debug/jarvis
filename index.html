@@ -323,7 +323,7 @@
 
 <script type="module">
   'use strict';
-  const APP_VERSION = 26;                       // muda a cada atualização (igual ao do sw.js)
+  const APP_VERSION = 28;                       // muda a cada atualização (igual ao do sw.js)
   const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js';
   const $ = s => document.querySelector(s);
   const log = $('#log'), live = $('#live');
@@ -635,6 +635,43 @@ if (SWAP) {
   const f0 = self.fetch.bind(self);
   self.fetch = (u, o) => { const s = String((u && u.url) || u); if (s.endsWith('/${JARVIS_VOICE}.onnx.json')) return f0(SWAP + '.json', o); if (s.endsWith('/${JARVIS_VOICE}.onnx')) return f0(SWAP, o); return f0(u, o); };
 }
+// Ajustes de naturalidade e o R: o leitor de fonemas (espeak) fala o R do fim da sílaba "puxado" (porta -> "pórâta").
+// Aqui ele vira o R normal (o mesmo de "carro"). Pega os dados no caminho, sem mexer na biblioteca.
+let INF = null, IDS = null, LEN = 1;
+const P0 = JSON.parse;
+JSON.parse = function (t, r) {
+  const v = P0.call(this, t, r);
+  try {
+    if (v && v.phoneme_id_map && v.inference) { IDS = v.phoneme_id_map; INF = v.inference; INF.noise_scale = 0.6; INF.noise_w = 0.9; INF.length_scale = LEN; }
+    else if (v && Array.isArray(v.phoneme_ids) && IDS) v.phoneme_ids = fixR(v.phoneme_ids);
+  } catch (e) {}
+  return v;
+};
+function fixR(ids) {
+  const id = c => (IDS[c] || [])[0];
+  const TAP = id('ɾ'), TRILL = id('r'), RR = id('x') ?? id('h'), SCHWA = id('ə');
+  if (RR === undefined || TAP === undefined) return ids;
+  const VOW = new Set(['a','e','i','o','u','ɐ','ɛ','ɔ','ə','ɪ','ʊ','æ','y','ɨ','w','j','\u0303'].map(id).filter(x => x !== undefined));
+  const MARK = new Set(['ˈ','ˌ','ː'].map(id).filter(x => x !== undefined));
+  const BOUND = new Set([' ', ',', '.', '!', '?', ';', ':', '$', '^'].map(id).filter(x => x !== undefined));
+  const SP = id(' ');
+  const pos = []; ids.forEach((x, i) => { if (x !== 0) pos.push(i); });   // só os sons (sem as pausas 0), na mesma ordem
+  const ph = pos.map(i => ids[i]);
+  const out = ids.slice(), drop = new Set();
+  const nextIdx = i => { let j = i + 1; while (j < ph.length && MARK.has(ph[j])) j++; return j; };
+  for (let i = 0; i < ph.length; i++) {
+    const x = ph[i];
+    if (x !== TAP && x !== TRILL) continue;
+    const j = nextIdx(i), n = ph[j];
+    if (x === TAP && n === SCHWA) { const k = nextIdx(j); if (k < ph.length && !VOW.has(ph[k]) && !BOUND.has(ph[k])) { out[pos[i]] = RR; drop.add(pos[j]); if (ids[pos[j] + 1] === 0) drop.add(pos[j] + 1); i = j; continue; } }   // "pórâta" -> "porta"
+    if (n === undefined) { out[pos[i]] = RR; continue; }
+    if (VOW.has(n)) continue;                                                     // entre vogais ("caro"): continua o r fraquinho
+    if (BOUND.has(n)) { let k = j; while (k < ph.length && MARK.has(ph[k])) k++; const k2 = n === SP ? nextIdx(j) : -1; out[pos[i]] = k2 > 0 && k2 < ph.length && VOW.has(ph[k2]) ? TAP : RR; continue; }   // "amor eterno" liga; fim de frase: R normal
+    out[pos[i]] = RR;                                                             // antes de consoante ("forte", "certo")
+  }
+  return drop.size ? out.filter((v, i) => !drop.has(i)) : out;
+}
+self.__fixR = fixR; self.__setIds = m => { IDS = m; };
 import * as piper from '${PIPER_URL}';
 let session = null;
 async function getSession(onProgress) {
@@ -650,12 +687,14 @@ async function getSession(onProgress) {
 let queue = Promise.resolve();
 let minTok = 0;
 self.onmessage = e => { const m = e.data || {}; if (m.type === 'cancel') { minTok = Math.max(minTok, m.tok || 0); return; } queue = queue.then(() => handle(m)); };
-async function handle({ id, type, text, tok }) {
+async function handle({ id, type, text, tok, len }) {
+  if (len) { LEN = len; if (INF) INF.length_scale = len; }
   if (type === 'speak' && tok && tok < minTok) { self.postMessage({ id, type: 'error', message: 'cancelado' }); return; }
   try {
     if (type === 'load') { await getSession(f => self.postMessage({ id, type: 'progress', frac: f })); self.postMessage({ id, type: 'ready' }); }
     else if (type === 'speak') {
       const s = await getSession();
+      if (INF) INF.length_scale = LEN;
       const wav = await s.predict(text);
       const buf = await wav.arrayBuffer();
       self.postMessage({ id, type: 'audio', buf }, [buf]);
@@ -666,7 +705,7 @@ async function handle({ id, type, text, tok }) {
   const ttsPend = new Map();
   function ttsCancel(tok) { if (ttsW) { try { ttsW.postMessage({ type: 'cancel', tok }); } catch (e) {} } }
   function ttsCall(type, text, onProgress, tok) {
-    if (window.__JARVIS_TEST_TTS) return window.__JARVIS_TEST_TTS(type, text, onProgress);
+    if (window.__JARVIS_TEST_TTS) return window.__JARVIS_TEST_TTS(type, text, onProgress, neuralLen());
     if (!ttsW) {
       ttsW = new Worker(URL.createObjectURL(new Blob([ttsWorkerCode()], { type: 'text/javascript' })), { type: 'module' });
       ttsW.onmessage = e => {
@@ -679,7 +718,7 @@ async function handle({ id, type, text, tok }) {
     }
     const id = ++ttsSeq;
     idleRelease('tts', null);
-    return new Promise((resolve, reject) => { ttsPend.set(id, { resolve, reject, onProgress }); ttsW.postMessage({ id, type, text, tok }); })
+    return new Promise((resolve, reject) => { ttsPend.set(id, { resolve, reject, onProgress }); ttsW.postMessage({ id, type, text, tok, len: neuralLen() }); })
       .finally(() => { if (!ttsPend.size) idleRelease('tts', TTS_IDLE, releaseTts); });
   }
   async function jarvisVoiceDownloaded() {
@@ -756,7 +795,9 @@ async function handle({ id, type, text, tok }) {
     fx.wet.gain.value = ia ? 0.14 : 0; fx.dlyG.gain.value = ia ? 0.2 : 0;
   }
   // Tom e velocidade: mais grave e calmo no efeito de IA
-  const neuralRate = () => Math.max(0.8, Math.min(1.3, (settings.voiceFx === 'natural' ? 1 : 0.84 + (settings.pitch - 0.5) * 0.3) * Math.sqrt(settings.rate)));
+  const neuralPitch = () => Math.max(0.8, Math.min(1.2, settings.voiceFx === 'natural' ? 1 : 0.84 + (settings.pitch - 0.5) * 0.3));
+  const neuralRate = () => neuralPitch();                                  // só o tom (efeito Jarvis)
+  const neuralLen = () => Math.max(0.7, Math.min(1.5, neuralPitch() / Math.sqrt(settings.rate)));   // o ritmo fica natural na velocidade escolhida
 
   function speakPhone(text) {   // reserva: a voz do celular, para um trecho
     return new Promise(resolve => {
@@ -794,6 +835,7 @@ async function handle({ id, type, text, tok }) {
     return {
       push(text) {
         const parts = chunk(cleanForSpeech(text), 140, true); if (!parts.length) return;
+        if (!started && parts[0].length > 70) { const c = parts[0].indexOf(', ', 20); if (c > 0 && c < 70) parts.splice(0, 1, parts[0].slice(0, c + 1), parts[0].slice(c + 2)); }   // começa a falar mais cedo
         if (!started) { started = true; try { synth && synth.cancel(); } catch (e) {} setPhase('speaking'); }
         parts.forEach(t => { const p = ttsCall('speak', t, null, token); p.catch(() => {}); jobs.push({ text: t, p }); });
         if (!playing) playNext();
@@ -1062,7 +1104,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         txt += (ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content) || '';
         const clean = stripThink(txt);
         if (looksBroken(clean, false, opts.foreign)) { try { engine.interruptGenerate(); } catch (e) {} throw brokenError(); }
-        if (clean.length >= 30) opts.onText(clean);          // só mostra/fala depois de conferir o começo
+        if (clean.length >= 20) opts.onText(clean);          // só mostra/fala depois de conferir o começo
       }
       const out = stripThink(txt);
       if (looksBroken(out, false, opts.foreign)) throw brokenError();
@@ -1519,16 +1561,18 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (!items.length) return { text: '', sources: [], failed: true };
     const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
 
-    let page = null;
-    if (settings.deep) {
-      const best = web.find(x => !/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|facebook\.com|x\.com|twitter\.com|\.pdf$/i.test(x.url));
-      if (best) {
-        onStep && onStep('Lendo ' + host(best.url) + '…');
-        try { page = { ...best, body: relevant(await readPage(best.url), q + ' ' + query, 900) }; } catch (e) { page = null; }
-      }
-    }
+    // Tudo ao mesmo tempo: ler a melhor página (no máximo uns segundos) e buscar uma segunda fonte, se faltar
+    const best = settings.deep ? web.find(x => !/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|facebook\.com|x\.com|twitter\.com|\.pdf$/i.test(x.url)) : null;
+    if (best) onStep && onStep('Lendo ' + host(best.url) + '…');
+    const pageP = best ? withTimeout(readPage(best.url), IDLE_T.page || 5000).then(t => ({ ...best, body: relevant(t, q + ' ' + query, 900) }), () => null) : Promise.resolve(null);
+    const base0 = plan.consulta || q;
+    const extraP = new Set(items.map(x => host(x.url)).filter(Boolean)).size < 2
+      ? Promise.allSettled([searchWikipedia(base0, 'en'), query !== base0 ? searchWeb(base0) : Promise.resolve([])]).then(rs => rs.flatMap(r => r.status === 'fulfilled' ? r.value : []))
+      : Promise.resolve(null);
+    extraP.catch(() => {});
+    const page = await pageP;
     // Material curto e denso: é o que mais pesa no tempo de resposta do celular
-    let budget = 1700; const parts = [], sources = [];   // material curto: o celular pensa mais rápido e não trava
+    let budget = 1500; const parts = [], sources = [];   // material curto: o celular pensa mais rápido e não trava
     const add = (it, body) => {
       if (budget < 120 || !body) return;
       const line = (it.title + ' (' + host(it.url) + '): ' + body).slice(0, budget);
@@ -1540,7 +1584,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     let hosts = [...new Set(sources.map(x => host(x.url)).filter(Boolean))];
     if (hosts.length < 2 && parts.length && budget >= 120) {
       try {
-        const extra = (await searchWikipedia(plan.consulta || q, 'en')).concat(query !== (plan.consulta || q) ? await searchWeb(plan.consulta || q).catch(() => []) : []);
+        const extra = (await extraP) || (await Promise.allSettled([searchWikipedia(base0, 'en'), query !== base0 ? searchWeb(base0) : Promise.resolve([])]).then(rs => rs.flatMap(r => r.status === 'fulfilled' ? r.value : [])));
         extra.filter(it => !hosts.includes(host(it.url))).slice(0, 2).forEach(it => add(it, relevant(it.text, q + ' ' + query, 300)));
         hosts = [...new Set(sources.map(x => host(x.url)).filter(Boolean))];
       } catch (e) {}
@@ -1676,7 +1720,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     return episodes.filter(e => !recent.has(e.q)).map(e => {
       const n = norm(e.q + ' ' + e.a); let s = 0; kw.forEach(k => { if (n.includes(k)) s++; });
       return { e, s };
-    }).filter(x => x.s >= (recall ? 1 : 2)).sort((a, b) => b.s - a.s || b.e.t - a.e.t).slice(0, max).map(x => x.e);
+    }).filter(x => recall ? x.s >= 1 : (x.s >= 3 && x.s >= kw.length * 0.6)).sort((a, b) => b.s - a.s || b.e.t - a.e.t).slice(0, recall ? max : 1).map(x => x.e);
   }
   const epDate = t => { const d = new Date(t), today = new Date(), y = new Date(); y.setDate(today.getDate() - 1); return d.toDateString() === today.toDateString() ? 'hoje' : d.toDateString() === y.toDateString() ? 'ontem' : d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }); };
   // "O que conversamos ontem?" -> assuntos daquele dia
@@ -1985,8 +2029,14 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
   // Se a resposta parou no meio de uma frase, termina na última frase completa
   // Deixa a resposta coerente: sem "Resposta:", sem repetir a pergunta e sem frases repetidas
+  // "Claro, senhor! Ótima pergunta." no começo não responde nada: sai antes de mostrar e de falar
+  function stripFiller(t) {
+    const t2 = String(t || '').replace(/^\s*(?:(?:claro|certamente|com certeza|ótima pergunta|boa pergunta|excelente pergunta|entendi|perfeito|muito bem)(?:,\s*senhor)?[.!,]\s*)+/i, '').trim();
+    return t2.length >= 8 ? t2.charAt(0).toUpperCase() + t2.slice(1) : String(t || '');
+  }
   function tidyAnswer(t) {
-    t = String(t || '').replace(/^\s*(resposta|jarvis|assistente)\s*:\s*/i, '').replace(/^\s*pergunta:[^\n]*\n+/i, '').trim();
+    t = String(t || '').replace(/^\s*(resposta|jarvis|assistente)\s*:\s*/i, '').replace(/^\s*pergunta[^:\n]*:[^\n]*\n+/i, '').trim();
+    t = stripFiller(t);
     const seen = [], out = [];
     for (const sent of splitSentences(t)) {
       const w = new Set(norm(sent).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(x => x.length > 2));
@@ -2083,22 +2133,27 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
 
   // ================= RESPONDER =================
+  // Instruções curtas: o celular lê tudo isso antes de cada resposta, então cada palavra a menos é resposta mais rápida
   const SYSTEM = [
-    'Você é JARVIS, assistente pessoal por voz: educado, eficiente, com humor seco e discreto. Chame o usuário de "senhor".',
-    'Responda em português do Brasil, direto, em 1 a 3 frases curtas, salvo se pedirem detalhes. A resposta será falada: sem markdown, listas, emojis ou links.',
-    'Comece pela resposta: responda exatamente o que foi perguntado, com palavras simples e precisas, sem rodeios e sem repetir a pergunta.',
-    'Se vier MATERIAL, use só ele para fatos, números e datas, preferindo o mais recente, e pode citar a fonte em poucas palavras (ex.: "segundo o g1"); se ele não tiver a resposta, diga que não encontrou. Sem material, responda com o que você sabe; se não tiver certeza, diga isso em poucas palavras, e nunca invente números, datas ou nomes.',
-    'Personalize: use os gostos, objetivos, dificuldades e prazos do usuário para escolher exemplos, priorizar o que importa para ele e ajustar a explicação ao nível dele.',
-    'Em lógica, contas, comparações e interpretação, raciocine com cuidado, confira se a conclusão segue dos fatos e aponte o que não está claro ou não foi comprovado.',
-    'Use o que você sabe sobre o usuário de forma natural, só quando ajudar, e às vezes chame-o pelo nome se souber. Se vierem conversas anteriores, use-as para dar continuidade. Se a pergunta for ambígua, responda a interpretação mais provável.',
-    'Coerência: siga o fio da conversa; "ele", "isso" e "e o…" se referem ao que acabou de ser falado. Não contradiga o que você disse antes; se errou, diga "corrigindo" e corrija. Organize assim: primeiro a resposta, depois o motivo ou um detalhe útil. Cada frase deve continuar a anterior. Não mude de assunto, não repita frases e não acrescente coisas que não foram pedidas.'
+    'Você é JARVIS, assistente pessoal por voz: educado, eficiente, humor seco e discreto. Chame o usuário de "senhor". Português do Brasil.',
+    'Responda exatamente a ÚLTIMA pergunta. Material, memórias e conversas antigas são só apoio: ignore o que não tiver a ver.',
+    'Comece pela resposta, sem rodeios nem repetir a pergunta. 1 a 3 frases curtas, salvo se pedirem detalhes. Será falado: sem markdown, listas, emojis ou links.',
+    'Fatos: se vier MATERIAL, use só ele (prefira o mais recente; pode citar a fonte em poucas palavras); se não tiver a resposta, diga que não encontrou. Sem material, use o que sabe; nunca invente números, datas ou nomes.',
+    'Lógica, contas e comparações: raciocine com cuidado e confira se a conclusão segue dos fatos.',
+    'Use o que sabe do usuário (gostos, objetivos, prazos) só quando ajudar. Pergunta ambígua: responda a interpretação mais provável.',
+    'Coerência: siga o fio da conversa ("ele", "isso" = o que acabou de ser falado). Não se contradiga; se errou, diga "corrigindo". Primeiro a resposta, depois o motivo. Não repita frases nem acrescente o que não foi pedido.'
   ].join('\n');
   const contextLine = q => 'Agora: ' + new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' }) + '.' + (settings.city ? ' Usuário mora em ' + settings.city + '.' : '') + memoryLine(q);
   const short = (t, n) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t);
+  // A pergunta continua a anterior? ("e ele?", "por quê?", "e amanhã?", "explica melhor")
+  function isFollowUp(q) {
+    const n = norm(q).replace(/^jarvis[,!. ]*/, '').replace(/[?!.]+$/, '').trim(), w = n.split(/\s+/).filter(Boolean).length;
+    return w <= 4 || FOLLOW_RE.test(n) || (w <= 10 && PRONOUN_RE.test(n)) || /^(por que|porque|e (se|quando|onde|como|quanto|qual)|explica melhor|explique melhor|nao entendi|como assim|resume|resuma|da um exemplo|mais detalhes|continua)\b/.test(n);
+  }
   function buildMessages(q, material, withHistory) {
     const msgs = [{ role: 'system', content: SYSTEM }];
-    if (withHistory) history.slice(-2).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 120) }); msgs.push({ role: 'assistant', content: short(h.a, 200) }); });   // as 2 últimas trocas, curtinhas
-    msgs.push({ role: 'user', content: contextLine(q) + (material ? '\n' + material : '') + '\n\nPergunta: ' + q });
+    if (withHistory && isFollowUp(q)) history.slice(-2).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 120) }); msgs.push({ role: 'assistant', content: short(h.a, 200) }); });   // as 2 últimas trocas, curtinhas
+    msgs.push({ role: 'user', content: contextLine(q) + (material ? '\n' + material : '') + '\n\nPERGUNTA (responda só a ela, direto): ' + q });
     return msgs;
   }
 
@@ -2298,6 +2353,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       const onText = t => {
           if (myTurn !== turnId) return;
           if ((t.trim() && /^\s*P?E?S?Q?U?I?S?A?R?\s*$/.test(t)) || /^\s*\W*PESQUISAR/i.test(t)) return;   // o cérebro pediu pesquisa: não mostra nem fala
+          t = stripFiller(t);
           lastText = t;
           if (!paintQueued) { paintQueued = true; requestAnimationFrame(() => { paintQueued = false; if (myTurn === turnId) setJarvisText(bubble, lastText || '…'); }); }
           if (!speaker) return;
@@ -2314,7 +2370,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       if (wantsMore) material += (material ? '\n' : '') + 'O usuário quer uma resposta mais completa: use até 6 frases, ainda sem listas ou símbolos.';
       // Pergunta que pede raciocínio (lógica, comparação, "é verdade?"): o cérebro pensa antes de responder
       const deep = useBrain && plan.acao !== 'conta' && plan.acao !== 'exato' && plan.acao !== 'texto' &&
-        /\b(por que|porque|logica|raciocin|analis|compar|vale a pena|qual (e )?(o |a )?melhor|faz sentido|e verdade|verdade que|deduz|conclu|explique por|se .{3,60} entao|qual a diferenca|quem esta certo)/.test(norm(q));
+        /\b(logica|raciocin|deduz|conclu|charada|enigma|se .{3,60} entao|quem esta certo|qual (e )?a logica|faz sentido|e verdade|verdade que)/.test(norm(q));   // pensar fundo só em lógica de verdade: o resto responde direto (bem mais rápido)
       const mathy = useBrain && (String(q).match(/\d+(?:[.,]\d+)?/g) || []).length >= 2 && /\b(quant[oa]s?|calcul|total|sobra|soma|diferenca|media|porcent|por cento|lucro|preco|troco|dividir|cada um|velocidade|tempo|juros|parcela)/.test(norm(q));
       const deepThink = deep || mathy;
       const mayAskSearch = useBrain && navigator.onLine && plan.acao === 'responder' && plan.pergunta && !mathy && !CREATIVE_RE.test(norm(q)) && !OPINION_RE.test(norm(q)) && !SELF_RE.test(norm(q).replace(/^jarvis[,!. ]*/, ''));
@@ -2323,7 +2379,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       const maxTok = plan.acao === 'texto' ? 400 : wantsMore ? 380 : 180;
       const foreign = /\b(ingles|espanhol|frances|alemao|italiano|japones|chines|coreano|russo|arabe|grego|hebraico|hindi|tailandes|latim|traduz\w*|traducao|idioma|lingua|alfabeto|kanji|emoji|simbolo|codigo|programa)/.test(norm(q));
       let raw;
-      const temp = CREATIVE_RE.test(norm(q)) ? 0.85 : OPINION_RE.test(norm(q)) ? 0.6 : (plan.acao === 'texto' || (material && !/^(Conversas anteriores|Se você não souber|O usuário quer)/.test(material))) ? 0.3 : 0.45;
+      const temp = CREATIVE_RE.test(norm(q)) ? 0.85 : OPINION_RE.test(norm(q)) ? 0.6 : (plan.acao === 'texto' || (material && !/^(Conversas anteriores|Se você não souber|O usuário quer)/.test(material))) ? 0.3 : 0.35;
       if (!useBrain) raw = quickReply(plan, q, material);
       else try { raw = await generate(buildMessages(q, material, plan.acao !== 'texto'), { max: deepThink ? maxTok + 450 : maxTok, turn: myTurn, onText: mathy ? (t => { if (myTurn === turnId) setJarvisText(bubble, t || '…'); }) : onText, foreign, temperature: mathy ? 0.1 : temp, think: deepThink }); }
       catch (e) {
@@ -2343,6 +2399,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       }
       raw = fixArithmetic(tidyAnswer(endAtSentence(raw)));          // contas conferidas, frases repetidas removidas
       reply = raw.replace(/\*\*|__|#+ /g, '').trim() || 'Desculpe, senhor, não consegui formular uma resposta.';
+      lastText = reply;                                  // a tela não volta para o texto parcial
       if (speaker && myTurn === turnId) speaker.push(raw.trim() ? raw.slice(spokenUpTo) : reply);
     } catch (e) {
       if (myTurn !== turnId || !active) { bubble.remove(); return; }
@@ -2478,6 +2535,10 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
   // Fala as contas em português: "12 × 7 = 84" -> "12 vezes 7 é igual a 84"
   const speakMath = t => String(t || '')
+    .replace(/R\$\s?(\d[\d.]*)(?:,(\d{2}))?/g, (m, a, c) => a + ' reais' + (c && c !== '00' ? ' e ' + c + ' centavos' : '')).replace(/US\$\s?(\d[\d.,]*)/g, '$1 dólares').replace(/€\s?(\d[\d.,]*)/g, '$1 euros')
+    .replace(/(\d)\s?°C\b/g, '$1 graus').replace(/(\d)\s?°/g, '$1 graus').replace(/(\d)\s?km\/h\b/gi, '$1 quilômetros por hora').replace(/(\d)\s?km\b/gi, '$1 quilômetros').replace(/(\d)\s?kg\b/gi, '$1 quilos')
+    .replace(/\b[Ss]r\.\s/g, 'senhor ').replace(/\b[Ss]ra\.\s/g, 'senhora ').replace(/\b[Dd]r\.\s/g, 'doutor ').replace(/\b[Dd]ra\.\s/g, 'doutora ').replace(/\bex\.:?\s/g, 'por exemplo, ').replace(/\betc\./g, 'etcétera.').replace(/\bvs\.?\s/g, 'contra ')
+    .replace(/\b(\d{1,2})h(\d{2})\b/g, '$1 e $2').replace(/\b(\d{1,2}):(\d{2})\b/g, (m, h, mi) => mi === '00' ? h + ' horas' : h + ' e ' + mi)
     .replace(/(\d|\))\s*[×*]\s*(?=[\d(√-])/g, '$1 vezes ').replace(/(\d|\))\s*[÷]\s*/g, '$1 dividido por ').replace(/(\d)\s+\/\s+(?=\d)/g, '$1 dividido por ')
     .replace(/(\d|\))\s*\^\s*(-?\d+)/g, '$1 elevado a $2').replace(/√\s*/g, 'raiz quadrada de ').replace(/∛\s*/g, 'raiz cúbica de ')
     .replace(/(\d)!/g, '$1 fatorial').replace(/(\d|\))\s*\+\s*(?=[\d(-])/g, '$1 mais ').replace(/(\d|\))\s+[-−]\s+(?=[\d(-])/g, '$1 menos ')
@@ -2827,7 +2888,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
   };
 
-  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { isGpuLost, getGpuDead: () => gpuDead, needsSearch, tidyAnswer, fixArithmetic, wordsToNumbers, evalExpr, importantSentences, textToAnalyze, fixHeard, pickAlternative, endAtSentence, recoverFromFreeze, ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
+  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { isFollowUp, buildMessages, neuralLen, neuralRate, isGpuLost, getGpuDead: () => gpuDead, needsSearch, tidyAnswer, fixArithmetic, wordsToNumbers, evalExpr, importantSentences, textToAnalyze, fixHeard, pickAlternative, endAtSentence, recoverFromFreeze, ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
 
   // ================= Início =================
   // Atualizou? Avisa uma vez: "Atualização concluída com sucesso"
