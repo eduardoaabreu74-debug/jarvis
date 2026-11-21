@@ -2,76 +2,82 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0b0c">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#071224">
 <title>Jarvis</title>
 <style>
   :root{
     --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
     --hud:"Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,sans-serif;
-    --bg:#0b0b0c; --bg2:#141416; --card:#1b1b1e; --card2:#232327; --line:#2e2e33; --line2:#3d3d44;
-    --orange:#ff7a1a; --orange2:#ffa257; --orange-soft:rgba(255,122,26,.14);
-    --text:#f2f2f3; --dim:#9a9aa3; --dim2:#6c6c75; --warn:#ffc247; --ok:#ffa257; --err:#ff6b5b;
-    --radius:16px; --shadow:0 8px 28px rgba(0,0,0,.45);
+    --mono:ui-monospace,"Roboto Mono","SFMono-Regular",Menlo,Consolas,monospace;
+    --bg:#071224; --bg2:#0b1a32; --card:#0f213d; --card2:#15294a; --line:#1d3557; --line2:#2a4670;
+    --acc:#4da8ff; --acc2:#9fd0ff; --acc-soft:rgba(77,168,255,.14); --acc-deep:#1f6fd1;
+    --text:#e6eef9; --dim:#8ea4c4; --dim2:#5d7499; --warn:#ffc35c; --ok:#6fe0b6; --err:#ff7a7a;
+    --radius:16px; --shadow:0 14px 40px rgba(0,0,0,.45); color-scheme:dark;
     /* nomes antigos usados no código continuam valendo */
-    --cyan:var(--orange); --cyan2:var(--orange2); --panel:var(--card);
+    --orange:var(--acc); --orange2:var(--acc2); --orange-soft:var(--acc-soft); --cyan:var(--acc); --cyan2:var(--acc2); --panel:var(--card);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
     font-family:var(--font);color:var(--text);-webkit-font-smoothing:antialiased;
-    background:radial-gradient(120% 70% at 50% 100%,#1d1410 0%,var(--bg) 55%);
+    background:radial-gradient(120% 60% at 50% 100%,#10305c 0%,var(--bg) 58%),var(--bg);
     display:flex;flex-direction:column;overflow:hidden;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  ::selection{background:var(--orange);color:#000}
+  /* grade sutil de fundo (estática: não pesa) */
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;
+    background-image:linear-gradient(rgba(77,168,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(77,168,255,.07) 1px,transparent 1px);background-size:36px 36px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 70%,#000 10%,transparent 70%);mask-image:radial-gradient(ellipse at 50% 70%,#000 10%,transparent 70%)}
+  ::selection{background:var(--acc);color:#04101f}
 
-  header{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;position:relative;z-index:2;border-bottom:1px solid rgba(255,255,255,.04)}
-  .brand{font-family:var(--hud);font-weight:700;letter-spacing:.32em;font-size:20px;color:var(--text);flex:1;min-width:0;white-space:nowrap}
-  .brand::first-letter{color:var(--orange)}
-  .status{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:7px;white-space:nowrap}
+  header{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;position:relative;z-index:2;background:linear-gradient(180deg,rgba(7,18,36,.9),rgba(7,18,36,0));border-bottom:1px solid rgba(77,168,255,.12)}
+  .brand{font-family:var(--hud);font-weight:700;letter-spacing:.34em;font-size:20px;color:var(--text);flex:1;min-width:0;white-space:nowrap;text-shadow:0 0 18px rgba(77,168,255,.35)}
+  .brand::first-letter{color:var(--acc)}
+  .status{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:7px;white-space:nowrap}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--dim2);transition:background .2s,box-shadow .2s}
-  body[data-phase="listening"] .dot{background:var(--orange);box-shadow:0 0 0 4px var(--orange-soft)}
-  body[data-phase="thinking"] .dot,body[data-phase="searching"] .dot,body[data-phase="loading"] .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(255,194,71,.15)}
-  body[data-phase="speaking"] .dot{background:var(--orange2);box-shadow:0 0 0 4px var(--orange-soft)}
-  .chip{font-size:10.5px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:99px;background:var(--card2);color:var(--dim);border:1px solid var(--line)}
-  .chip.off{color:var(--warn);border-color:rgba(255,194,71,.35)}
-  .iconbtn{flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--text);font-size:18px;cursor:pointer;transition:background .15s}
-  .iconbtn:active{background:var(--card2)}
+  body[data-phase="listening"] .dot{background:var(--acc);box-shadow:0 0 0 4px var(--acc-soft),0 0 10px var(--acc)}
+  body[data-phase="thinking"] .dot,body[data-phase="searching"] .dot,body[data-phase="loading"] .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(255,195,92,.15)}
+  body[data-phase="speaking"] .dot{background:var(--acc2);box-shadow:0 0 0 4px var(--acc-soft),0 0 10px var(--acc2)}
+  .chip{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:6px;background:rgba(111,224,182,.08);color:var(--ok);border:1px solid rgba(111,224,182,.3)}
+  .chip.off{color:var(--warn);background:rgba(255,195,92,.08);border-color:rgba(255,195,92,.35)}
+  .iconbtn{flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--acc2);font-size:18px;cursor:pointer;transition:background .15s,border-color .15s}
+  .iconbtn:active{background:var(--card2);border-color:var(--acc)}
 
-  #log{flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:2;scroll-behavior:smooth;overscroll-behavior:contain}
-  .msg{max-width:86%;padding:10px 14px;border-radius:18px;line-height:1.45;font-size:15px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;animation:in .18s ease-out}
+  #log{flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:2;overscroll-behavior:contain}
+  .msg{max-width:86%;padding:10px 14px;border-radius:16px;line-height:1.45;font-size:15px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;animation:in .18s ease-out}
   @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .msg.user{align-self:flex-end;background:var(--orange);color:#160a00;font-weight:500;border-bottom-right-radius:6px}
-  .msg.jarvis{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:6px}
-  .msg.jarvis .who{display:block;font-size:10.5px;font-weight:800;letter-spacing:.18em;color:var(--orange);margin-bottom:4px}
+  .msg.user{align-self:flex-end;background:linear-gradient(135deg,var(--acc-deep),#2b86ec);color:#fff;border-bottom-right-radius:5px;box-shadow:0 4px 14px rgba(31,111,209,.3)}
+  .msg.jarvis{align-self:flex-start;background:rgba(15,33,61,.92);border:1px solid var(--line);border-left:2px solid var(--acc);border-bottom-left-radius:5px}
+  .msg.jarvis .who{display:block;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.2em;color:var(--acc);margin-bottom:4px}
   .msg.jarvis .src{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
-  .msg.jarvis .src a{font-size:11.5px;color:var(--dim);text-decoration:none;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .msg.jarvis .src a.actbtn{background:var(--orange);color:#160a00;font-weight:700;font-size:14px;padding:9px 16px;border:none}
-  .msg.sys{align-self:center;font-size:13px;color:var(--text);background:var(--bg2);border:1px solid var(--line);text-align:center;max-width:94%;border-radius:14px}
-  .msg.ok{align-self:center;font-size:14px;font-weight:600;color:var(--orange2);background:var(--orange-soft);border:1px solid rgba(255,122,26,.4);text-align:center;max-width:94%;border-radius:14px}
-  .msg.sys .retry{display:block;margin:10px auto 2px;background:var(--orange);color:#160a00;border:none;border-radius:10px;padding:9px 16px;font:700 13px var(--font);letter-spacing:.06em;cursor:pointer}
+  .msg.jarvis .src a{font-family:var(--mono);font-size:11px;color:var(--acc2);text-decoration:none;background:var(--acc-soft);border:1px solid rgba(77,168,255,.25);border-radius:6px;padding:4px 9px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msg.jarvis .src a.actbtn{font-family:var(--font);background:var(--acc);color:#04101f;font-weight:700;font-size:14px;padding:9px 16px;border:none;border-radius:10px}
+  .msg.sys{align-self:center;font-size:13px;color:#c5d3e8;background:var(--bg2);border:1px solid var(--line);text-align:center;max-width:94%;border-radius:12px}
+  .msg.ok{align-self:center;font-size:14px;font-weight:600;color:var(--ok);background:rgba(111,224,182,.08);border:1px solid rgba(111,224,182,.35);text-align:center;max-width:94%;border-radius:12px}
+  .msg.sys .retry{display:block;margin:10px auto 2px;background:var(--acc);color:#04101f;border:none;border-radius:10px;padding:9px 16px;font:700 13px var(--font);letter-spacing:.06em;cursor:pointer}
   .msg.sys .note{color:var(--dim)}
   .empty{margin:auto;text-align:center;color:var(--dim);font-size:14.5px;line-height:1.6;padding:20px}
 
-  #live{min-height:24px;padding:2px 22px;text-align:center;color:var(--orange2);font-size:15px;font-style:italic;position:relative;z-index:2}
+  #live{min-height:24px;padding:2px 22px;text-align:center;color:var(--acc2);font-size:15px;font-style:italic;position:relative;z-index:2}
 
   .core-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 10px;position:relative;z-index:2}
   #core{position:relative;width:164px;height:164px;border-radius:50%;border:none;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .12s}
   #core:active{transform:scale(.94)}
-  #core:focus-visible{outline:2px solid var(--orange);outline-offset:6px}
+  #core:focus-visible{outline:2px solid var(--acc);outline-offset:6px}
   #core .ring,#core .glow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;pointer-events:none}
-  #core .glow{border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.42) 0%,rgba(255,122,26,.12) 42%,transparent 66%);opacity:0;will-change:opacity}
+  #core .glow{border-radius:50%;background:radial-gradient(circle,rgba(77,168,255,.45) 0%,rgba(77,168,255,.12) 42%,transparent 66%);opacity:.18;will-change:opacity}
   .r1{animation:spin 24s linear infinite}
   .r2{animation:spin 16s linear infinite reverse}
   .r3{animation:spin 40s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
   @keyframes glow{0%,100%{opacity:.25}50%{opacity:1}}
-  body[data-phase="off"] #core .ring{opacity:.55}
+  body[data-phase="off"] #core .ring{opacity:.6}
   body[data-phase="off"] .r1,body[data-phase="off"] .r2,body[data-phase="off"] .r3{animation-play-state:paused}
   body[data-phase="listening"] .heart{animation:pulse 1.1s ease-in-out infinite}
   body[data-phase="listening"] .r2 circle{stroke:#fff}
+  body[data-phase="listening"] .glow{opacity:.6}
   body[data-phase="thinking"] .r1,body[data-phase="searching"] .r1,body[data-phase="loading"] .r1{animation-duration:2.2s}
   body[data-phase="thinking"] .r2,body[data-phase="searching"] .r2{animation-duration:1.4s}
   body[data-phase="thinking"] .r2 circle,body[data-phase="searching"] .r2 circle{stroke:var(--warn)}
@@ -80,70 +86,73 @@
   body[data-phase="speaking"] .glow{animation:glow .9s ease-in-out infinite}
   body[data-phase="speaking"] .heart{animation:pulse .6s ease-in-out infinite}
   body[data-phase="tap"] .heart{animation:pulse 2s ease-in-out infinite}
-  .core-label{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text)}
+  .core-label{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--acc2)}
   #hint{font-size:12.5px;color:var(--dim);text-align:center;padding:0 24px;min-height:16px;line-height:1.4}
-  #endBtn{display:none;background:rgba(255,107,91,.12);border:1px solid rgba(255,107,91,.45);color:#ffb3aa;border-radius:999px;padding:7px 18px;font:700 12px var(--font);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+  #endBtn{display:none;background:rgba(255,122,122,.1);border:1px solid rgba(255,122,122,.4);color:#ffb0b0;border-radius:8px;padding:7px 18px;font:700 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
   body.active #endBtn{display:inline-block}
   button,a,input,select{touch-action:manipulation}
   @media (prefers-reduced-motion:reduce){.r1,.r2,.r3,.heart,.glow,.msg{animation:none!important}}
 
   #loadBox{display:none;width:min(330px,84vw);text-align:center}
   #loadBox.show{display:block}
-  .bar{height:6px;border-radius:99px;background:var(--card2);overflow:hidden;margin-top:7px}
-  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--orange),var(--orange2));transition:width .3s}
-  #loadText{font-size:12.5px;color:var(--orange2);line-height:1.4}
+  .bar{height:5px;border-radius:99px;background:var(--card2);overflow:hidden;margin-top:7px}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc-deep),var(--acc),var(--acc2));box-shadow:0 0 10px rgba(77,168,255,.6);transition:width .3s}
+  #loadText{font-family:var(--mono);font-size:11.5px;color:var(--acc2);line-height:1.5}
 
   form.ask{display:flex;gap:8px;padding:8px 12px 12px;position:relative;z-index:2}
-  form.ask input{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:13px 15px;font:15px var(--font);outline:none;transition:border-color .15s}
+  form.ask input{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:13px 15px;font:15px var(--font);outline:none;transition:border-color .15s,box-shadow .15s}
   form.ask input::placeholder{color:var(--dim2)}
-  form.ask input:focus{border-color:var(--orange)}
-  form.ask button{background:var(--orange);color:#160a00;border:none;border-radius:14px;padding:0 18px;font:800 13px var(--font);letter-spacing:.08em;cursor:pointer}
+  form.ask input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+  form.ask button{background:linear-gradient(135deg,var(--acc),#2b86ec);color:#fff;border:none;border-radius:14px;padding:0 18px;font:800 13px var(--font);letter-spacing:.08em;cursor:pointer;box-shadow:0 4px 14px rgba(43,134,236,.35)}
   form.ask button:active{filter:brightness(.9)}
 
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  .overlay{position:fixed;inset:0;background:rgba(2,8,18,.72);display:none;align-items:flex-end;justify-content:center;z-index:10}
   .overlay.open{display:flex;animation:fade .15s ease-out}
   @keyframes fade{from{opacity:0}to{opacity:1}}
   .sheet{width:100%;max-width:480px;max-height:92vh;overflow-y:auto;overscroll-behavior:contain;background:var(--bg2);border:1px solid var(--line);border-bottom:none;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));box-shadow:var(--shadow)}
   .sheet::before{content:"";display:block;width:42px;height:4px;border-radius:9px;background:var(--line2);margin:-6px auto 16px}
-  .sheet h2{font-size:15px;font-weight:800;letter-spacing:.16em;color:var(--text);margin-bottom:14px}
-  .sheet p{font-size:14px;line-height:1.55;color:#cfcfd4;margin-bottom:10px}
-  .sheet a{color:var(--orange2)}
+  .sheet h2{font-family:var(--mono);font-size:14px;font-weight:800;letter-spacing:.18em;color:var(--text);margin-bottom:14px}
+  .sheet p{font-size:14px;line-height:1.55;color:#c5d3e8;margin-bottom:10px}
+  .sheet a{color:var(--acc2)}
   .row{margin-bottom:15px}
   .row label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
   .row select,.row input[type=text],.row input[type=password]{width:100%;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px;font:14px var(--font)}
-  .row input[type=range]{width:100%;accent-color:var(--orange)}
-  input[type=checkbox]{accent-color:var(--orange)}
+  .row select:focus,.row input:focus{outline:none;border-color:var(--acc)}
+  .row input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:9px;background:var(--card2);outline:none;margin:8px 0}
+  .row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--acc);border:3px solid var(--bg2);box-shadow:0 0 0 1px var(--acc),0 0 10px rgba(77,168,255,.5)}
+  .row input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--acc);border:3px solid var(--bg2)}
+  input[type=checkbox]{accent-color:var(--acc)}
   .btns{display:flex;gap:10px;flex-wrap:wrap}
   .sheet button{flex:1;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font:700 13px var(--font);letter-spacing:.06em;cursor:pointer}
-  .sheet button:active{background:var(--card2)}
-  .sheet button.primary{background:var(--orange);color:#160a00;border:none}
-  .sheet button.danger{border-color:rgba(255,107,91,.45);color:#ffb3aa;background:transparent}
+  .sheet button:active{background:var(--card2);border-color:var(--acc)}
+  .sheet button.primary{background:linear-gradient(135deg,var(--acc),#2b86ec);color:#fff;border:none}
+  .sheet button.danger{border-color:rgba(255,122,122,.4);color:#ffb0b0;background:transparent}
   .sheet button:disabled{opacity:.4}
   .note{font-size:12px;color:var(--dim);line-height:1.5;margin-top:5px}
   .err{color:var(--err);font-size:12.5px;margin-top:6px;line-height:1.45}
-  .sec{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--orange);margin:18px 0 10px;border-top:1px solid var(--line);padding-top:14px}
-  #offlineStatus{font-size:13.5px;line-height:1.5;padding:11px 13px;border-radius:14px;margin:0 0 16px;border:1px solid var(--line);background:var(--card)}
-  #offlineStatus.ok{border-color:rgba(255,122,26,.4);color:var(--orange2)}
-  #offlineStatus.todo{border-color:rgba(255,194,71,.35);color:var(--warn)}
+  .sec{font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:.18em;color:var(--acc);margin:18px 0 10px;border-top:1px solid var(--line);padding-top:14px}
+  #offlineStatus{font-size:13.5px;line-height:1.5;padding:11px 13px;border-radius:12px;margin:0 0 16px;border:1px solid var(--line);background:var(--card)}
+  #offlineStatus.ok{border-color:rgba(111,224,182,.35);color:var(--ok)}
+  #offlineStatus.todo{border-color:rgba(255,195,92,.35);color:var(--warn);background:rgba(255,195,92,.06)}
   details.adv{border-top:1px solid var(--line);padding-top:10px}
   details.adv summary,details.memlist summary{cursor:pointer;font-size:14px;padding:6px 0}
   details.adv summary{color:var(--dim)}
-  details.memlist summary{color:var(--orange2);font-size:13.5px}
+  details.memlist summary{color:var(--acc2);font-size:13.5px}
   #memItems{margin-top:8px;max-height:260px;overflow-y:auto}
   .memitem{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
   .memitem span{flex:1;line-height:1.35}
   .memitem small{color:var(--dim2);font-size:11px}
-  .memitem button{flex:0 0 auto!important;width:32px;height:32px;padding:0!important;border-radius:9px!important;color:#ffb3aa!important}
+  .memitem button{flex:0 0 auto!important;width:32px;height:32px;padding:0!important;border-radius:9px!important;color:#ffb0b0!important}
   label.check{display:flex!important;align-items:center;gap:10px;color:var(--text)!important}
   label.check input{width:20px;height:20px}
-  #diag{font-size:12.5px;line-height:1.7;color:#cfcfd4;margin-top:8px;white-space:pre-line}
+  #diag{font-family:var(--mono);font-size:11.5px;line-height:1.7;color:#c5d3e8;margin-top:8px;white-space:pre-line}
 
-  #installBar{position:relative;z-index:3;margin:8px 12px 2px;padding:10px 12px;border-radius:14px;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid rgba(255,122,26,.4);font-size:13.5px}
+  #installBar{position:relative;z-index:3;margin:8px 12px 2px;padding:10px 12px;border-radius:14px;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid rgba(77,168,255,.35);font-size:13.5px}
   #installBar[hidden]{display:none}
   #installBar span{flex:1;line-height:1.35}
-  #installBar button{background:var(--orange);color:#160a00;border:none;border-radius:10px;padding:9px 14px;font:800 12.5px var(--font);letter-spacing:.06em;cursor:pointer}
+  #installBar button{background:var(--acc);color:#04101f;border:none;border-radius:10px;padding:9px 14px;font:800 12.5px var(--font);letter-spacing:.06em;cursor:pointer}
 
-  @media (max-width:430px){ .brand{letter-spacing:.26em;font-size:18px} .status{font-size:11px;gap:6px} }
+  @media (max-width:430px){ .brand{letter-spacing:.26em;font-size:18px} .status{font-size:10.5px;gap:6px} }
   @media (max-width:360px){ .brand{letter-spacing:.16em;font-size:16px} #statusText{display:none} header{padding:12px 12px 8px} #core{width:150px;height:150px} }
   @media (max-height:640px){ #core{width:132px;height:132px} .core-wrap{padding:2px 0 6px} }
 </style>
@@ -169,20 +178,20 @@
   <section class="core-wrap">
     <button id="core" aria-label="Iniciar ou encerrar conversa">
       <div class="glow"></div>
-      <svg class="ring r3" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#ff7a1a" stroke-opacity=".35" stroke-width="1" stroke-dasharray="2 6"/></svg>
-      <svg class="ring r1" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="84" fill="none" stroke="#ff7a1a" stroke-width="3" stroke-dasharray="60 22 8 22"/></svg>
-      <svg class="ring r2" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="68" fill="none" stroke="#8a8a93" stroke-width="2" stroke-dasharray="4 10"/></svg>
-      <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="54" fill="none" stroke="#4a4a52" stroke-opacity="1" stroke-width="1"/></svg>
+      <svg class="ring r3" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#4da8ff" stroke-opacity=".45" stroke-width="1" stroke-dasharray="2 6"/></svg>
+      <svg class="ring r1" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="84" fill="none" stroke="#4da8ff" stroke-width="3" stroke-dasharray="60 22 8 22"/></svg>
+      <svg class="ring r2" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="68" fill="none" stroke="#7f9cc4" stroke-width="2" stroke-dasharray="4 10"/></svg>
+      <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="54" fill="none" stroke="#2a4670" stroke-opacity="1" stroke-width="1"/></svg>
       <svg class="ring heart" viewBox="0 0 200 200" aria-hidden="true">
         <defs>
           <radialGradient id="g" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#fff1e4"/>
-            <stop offset="35%" stop-color="#ff7a1a"/>
-            <stop offset="100%" stop-color="#ff7a1a" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#e8f4ff"/>
+            <stop offset="35%" stop-color="#4da8ff"/>
+            <stop offset="100%" stop-color="#4da8ff" stop-opacity="0"/>
           </radialGradient>
         </defs>
         <circle cx="100" cy="100" r="44" fill="url(#g)" opacity=".55"/>
-        <circle cx="100" cy="100" r="20" fill="#fff1e4"/>
+        <circle cx="100" cy="100" r="20" fill="#e8f4ff"/>
       </svg>
     </button>
     <div class="core-label" id="coreLabel">Toque para iniciar</div>
@@ -224,6 +233,11 @@
         </select>
         <div class="note" id="jarvisVoiceNote"></div>
         <div class="btns" style="margin-top:8px"><button id="jarvisVoiceDl" style="display:none">BAIXAR VOZ DO JARVIS (63 MB)</button></div>
+      </div>
+      <div class="row" id="voiceIdRow">
+        <label for="voiceIdSel">Qual voz do Jarvis (sotaque)</label>
+        <select id="voiceIdSel"></select>
+        <div class="note">Cada voz tem um jeito de falar. Escolha, baixe (63 MB, só uma vez) e toque em OUVIR A VOZ para comparar.</div>
       </div>
       <div class="row">
         <label for="fxSel">Efeito</label>
@@ -309,7 +323,7 @@
 
 <script type="module">
   'use strict';
-  const APP_VERSION = 19;                       // muda a cada atualização (igual ao do sw.js)
+  const APP_VERSION = 25;                       // muda a cada atualização (igual ao do sw.js)
   const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js';
   const $ = s => document.querySelector(s);
   const log = $('#log'), live = $('#live');
@@ -320,7 +334,7 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
   const settings = Object.assign(
-    { noBrain: false, voiceName: '', pitch: 0.8, rate: 1.05, silence: 1.6, model: 'padrao', city: '', fcKey: '', jinaKey: '', deep: true, freeMem: true, sttMode: 'auto', voiceEngine: 'jarvis', voiceFx: 'ia' },
+    { noBrain: false, voiceId: 'faber', voiceName: '', pitch: 0.8, rate: 1.05, silence: 1.6, model: 'padrao', city: '', fcKey: '', jinaKey: '', deep: true, freeMem: true, sttMode: 'auto', voiceEngine: 'jarvis', voiceFx: 'ia' },
     (() => { try { return JSON.parse(store.get('jarvis-local-settings', '{}')); } catch (e) { return {}; } })()
   );
   const saveSettings = () => store.set('jarvis-local-settings', JSON.stringify(settings));
@@ -593,7 +607,7 @@ self.onmessage = async e => {
       if (!active) return;
       const text = (res.text || '').trim();
       if (!text) { if (++emptyRestarts > 10) { setPhase('tap'); hint('Fiquei um tempo sem entender nada. Toque no núcleo para falar.'); return; } setPhase('listening'); return listenLocal(); }
-      live.textContent = '“' + text + '”';
+      live.textContent = '“' + fixHeard(text) + '”';
       finishTurn(text);
     } catch (e) {
       if (!active) return;
@@ -607,7 +621,20 @@ self.onmessage = async e => {
   const ORT_WASM = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
   const PHONEMIZE = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize';
   const JARVIS_VOICE = 'pt_BR-faber-medium';
-  const TTS_WORKER_CODE = `
+  // Vozes masculinas em português do Brasil. A escolhida é baixada no lugar da original (mesmo nome de arquivo no celular)
+  const VOICES = {
+    faber: { label: 'Faber (original)', url: null },
+    cadu: { label: 'Cadu', url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx' },
+    jeff: { label: 'Jeff', url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/jeff/medium/pt_BR-jeff-medium.onnx' }
+  };
+  if (!VOICES[settings.voiceId]) settings.voiceId = 'faber';
+  const voiceSwap = () => VOICES[settings.voiceId].url;
+  const ttsWorkerCode = () => `
+const SWAP = ${JSON.stringify(voiceSwap())};
+if (SWAP) {
+  const f0 = self.fetch.bind(self);
+  self.fetch = (u, o) => { const s = String((u && u.url) || u); if (s.endsWith('/${JARVIS_VOICE}.onnx.json')) return f0(SWAP + '.json', o); if (s.endsWith('/${JARVIS_VOICE}.onnx')) return f0(SWAP, o); return f0(u, o); };
+}
 import * as piper from '${PIPER_URL}';
 let session = null;
 async function getSession(onProgress) {
@@ -641,7 +668,7 @@ async function handle({ id, type, text, tok }) {
   function ttsCall(type, text, onProgress, tok) {
     if (window.__JARVIS_TEST_TTS) return window.__JARVIS_TEST_TTS(type, text, onProgress);
     if (!ttsW) {
-      ttsW = new Worker(URL.createObjectURL(new Blob([TTS_WORKER_CODE], { type: 'text/javascript' })), { type: 'module' });
+      ttsW = new Worker(URL.createObjectURL(new Blob([ttsWorkerCode()], { type: 'text/javascript' })), { type: 'module' });
       ttsW.onmessage = e => {
         const m = e.data, h = ttsPend.get(m.id); if (!h) return;
         if (m.type === 'progress') { h.onProgress && h.onProgress(m.frac); return; }
@@ -659,12 +686,22 @@ async function handle({ id, type, text, tok }) {
     if (window.__JARVIS_TEST_TTS) return !!window.__JARVIS_TEST_TTS_READY;
     try {
       const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('piper');
+      if (store.get('jarvis-voz-arquivo', 'faber') !== settings.voiceId) return false;   // o arquivo guardado é de outra voz
       for await (const name of dir.keys()) if (name === JARVIS_VOICE + '.onnx') return true;
     } catch (e) {}
     return false;
   }
+  // Troca de voz: apaga o arquivo da voz anterior para baixar a nova
+  async function clearVoiceFiles() {
+    try {
+      const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('piper');
+      for (const f of [JARVIS_VOICE + '.onnx', JARVIS_VOICE + '.onnx.json']) { try { await dir.removeEntry(f); } catch (e) {} }
+    } catch (e) {}
+  }
   async function ensureJarvisVoice(onProgress) {
+    if (store.get('jarvis-voz-arquivo', 'faber') !== settings.voiceId) { releaseTts(); await clearVoiceFiles(); }
     await ttsCall('load', null, onProgress);
+    store.set('jarvis-voz-arquivo', settings.voiceId);
     jarvisVoiceReady = true; jarvisVoiceOnPhone = true; jarvisVoiceBroken = false;   // baixada: pode usar mesmo depois de sair da memória
   }
   // Já baixada no celular = pode usar na hora (o motor liga sozinho na primeira frase)
@@ -994,10 +1031,10 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const req = {
       messages,
       temperature: opts.temperature ?? 0.7,
-      top_p: opts.temperature === 0 ? 1 : 0.8,
-      presence_penalty: opts.temperature === 0 ? 0 : 0.6,
+      top_p: opts.temperature === 0 ? 1 : 0.85,
+      presence_penalty: opts.temperature === 0 ? 0 : 0.4, frequency_penalty: opts.temperature === 0 ? 0 : 0.3,
       max_tokens: opts.max || 220,
-      extra_body: { enable_thinking: false }
+      extra_body: { enable_thinking: !!opts.think }
     };
     if (opts.onText) {
       req.stream = true;
@@ -1072,7 +1109,26 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   const TIME_RE = /\b(que horas|que dia e hoje|qual a data|data de hoje|dia da semana)\b/;
   const WEATHER_RE = /\b(clima|previsao( do tempo)?|temperatura|vai chover|chover|chovendo|chuva|calor|frio|quantos graus|o tempo (hoje|amanha|agora|la fora|em|no|na)|como (esta|ta|vai (estar|ficar)) o tempo|tempo (hoje|amanha))\b/;
   const CURRENCY_RE = /\b(cotacao|cambio|quanto (esta|ta|custa|vale) o (dolar|euro|peso|iene|yuan|franco|libra)|(dolar|euro|libra|peso argentino|iene|yuan|franco suico)( hoje| agora)?$)/;
-  const SEARCH_RE = /\b(hoje|ontem|agora|atual|atualmente|ultim[oa]s?|recente|noticias?|preco|placar|resultado|quem ganhou|jogo|campeonato|eleicao|lancamento|quem e|quem foi|quando|onde fica|quantos|qual e a capital|como funciona|o que e|o que foi|20[2-3]\d)\b/;
+  // ===== Pesquisar ou não? Pesquisa só o que muda com o tempo (notícias, preços, cargos, pessoas vivas, produtos novos)
+  // ou quando o senhor pede. Conhecimento estável (conceitos, história, ciência, explicações) o cérebro responde sozinho.
+  const SEARCH_ASK_RE = /\b(pesquis\w*|procur\w*|busc\w*|google|internet|na web|online|confer\w*|verifiqu\w*|confirm\w* (se|isso|pra mim|para mim))\b/;
+  const FRESH_RE = /\b(hoje|ontem|agora|neste momento|nesse momento|atual|atuais|atualmente|ultim[oa]s?|recente\w*|novidades?|noticias?|aconteceu|acontecendo|esta semana|essa semana|este mes|esse mes|este ano|esse ano|ano passado|20[2-3]\d|placar|resultado d\w*|quem ganhou|quem venceu|vai jogar|proximo jogo|jogo d[oe]s?|joga hoje|campeonato|classificacao|tabela d[oa]|brasileirao|libertadores|eleic\w*|eleit[oa]|lancamento|lancou|lancad[oa]|vai lancar|estreia|estreou|em cartaz|nova temporada|preco|precos|quanto custa|quanto ta|quanto esta|custa quanto|promocao|bitcoin|cripto\w*|acoes d|bolsa de valores|ibovespa|(?:qual|quanto) (?:e |esta |ta )?(?:a )?(?:taxa )?(?:inflacao|selic)|salario minimo|nova lei|lei nova|em vigor|ja esta valendo|horario de funcionamento|esta aberto|abre (que|as) horas?|fecha (que|as) horas?|endereco d|telefone d|perto de mim|aqui perto|morreu|faleceu|esta vivo|ainda vivo|esta preso|foi preso|se separou|casou|esta namorando|quantos anos tem|idade d[oa]|presidente|governador|prefeito|ministr[oa]|senador|deputad[oa]|papa|ceo|dono d[oa]|tecnico d[oa]|treinador|transito|voo|fora do ar|caiu o|versao|atualizacao|lancamentos|melhor(es)? (celular|celulares|notebook|tv|fone|carro|jogo|filme|serie)s?|ranking|recorde mundial|ainda (e|esta|existe|funciona|tem|vende|joga))\b/;
+  const HISTORY_RE = /\b(quem foi|foi o primeiro|foi a primeira|primeir[oa] (presidente|rei|imperador|homem|mulher)|seculo|antigamente|na historia|historia d[oa]|em (1[0-9]{3}|19[0-9]{2})|durante a|guerra|imperio|descobriu|inventou|invencao|criou a teoria)\b/;
+  const ROLE_RE = /\b(presidente|governador|prefeito|ministr[oa]|senador|deputad[oa]|papa|ceo|dono|tecnico|treinador|rei|rainha|campea[o]?|lider|chefe|diretor|reitor|vice)\b/;
+  function needsSearch(q) {
+    const n = norm(q).replace(/^jarvis[,!. ]*/, '');
+    if (SEARCH_ASK_RE.test(n)) return 'pediu';
+    if (/\b(e verdade|verdade que|e fake|e mentira|sera que .{3,} (morreu|foi preso|acabou|vai))\b/.test(n)) return 'conferir';
+    if (FRESH_RE.test(n) && !(HISTORY_RE.test(n) && !/\b(hoje|agora|atual\w*|ultim\w*|recente\w*|20[2-3]\d)\b/.test(n))) return 'atual';
+    // "quem é Fulano": pessoa viva pode mudar de cargo, time, situação
+    let m = n.match(/^(?:me (?:diga|fala|fale) )?quem (?:e|eh|sao) (?:o |a |os |as )?(.+)$/);
+    if (m && !/^(voce|vc|eu|mim)\b/.test(m[1]) && (!/^(o|a|os|as) /.test(n.replace(/^.*?quem (e|eh|sao) /, '')) || ROLE_RE.test(m[1]))) return 'pessoa';
+    // Produto, marca, app ou empresa com nome próprio ("o que é o Nubank", "iPhone 16 é bom?")
+    const orig = String(q).replace(/^\s*jarvis[,!. ]*/i, '');
+    if (/\b(o que (e|eh)|vale a pena|e bom|presta|como esta)\b/.test(n) && /(?:^|\s)(?!Jarvis\b)[A-Z][a-z][a-zA-Z0-9]*/.test(orig.replace(/^\S+/, ''))) return 'nome';
+    if (/\b(iphone|galaxy|xiaomi|redmi|poco|motorola|moto [a-z]|pixel|playstation|ps[45]|xbox|nintendo|switch|gpt|chatgpt|gemini|claude|windows|android|ios)\s?\d*/.test(n) && /\b(qual|quando|quanto|vale|bom|melhor|lanc|novo|nova|versao|ultim)/.test(n)) return 'produto';
+    return '';
+  }
   const URL_RE = /\b((?:https?:\/\/)?(?:[\w-]+\.)+(?:com|br|org|net|gov|edu|io|info|me|tv)(?:\.br)?(?:\/[^\s]*)?)/i;
 
   function extractCity(q) {
@@ -1080,27 +1136,152 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     return m ? m[1] : '';
   }
 
-  // Contas: entende "quanto é 12 vezes 7", "15% de 300", "2 elevado a 10"
-  function tryMath(q) {
-    let s = norm(q).replace(/^(jarvis[, ]*)?(quanto (e|da|fica)|calcule|calcula|faz a conta( de)?|qual o resultado de)\s*/, '').replace(/[?!]$/, '').trim();
-    let m = s.match(/^(\d+(?:[.,]\d+)?)\s*(%|por cento)\s*de\s*(\d+(?:[.,]\d+)?)$/);
-    if (m) { const a = +m[1].replace(',', '.'), b = +m[3].replace(',', '.'); return { expr: m[1] + '% de ' + m[3], value: a * b / 100 }; }
-    s = s.replace(/\bmais\b/g, '+').replace(/\bmenos\b/g, '-').replace(/\b(vezes|multiplicado por|x)\b/g, '*').replace(/×/g, '*')
-         .replace(/\b(dividido por|sobre)\b/g, '/').replace(/÷/g, '/').replace(/\belevado a\b/g, '^').replace(/\bao quadrado\b/g, '^2')
-         .replace(/\braiz quadrada de\s*(\d+(?:[.,]\d+)?)/g, 'sqrt($1)').replace(/(\d),(\d)/g, '$1.$2');
-    if (!/^[\d\s+\-*/^().sqrt]+$/.test(s) || !/\d/.test(s) || !/[+\-*/^]|sqrt/.test(s)) return null;
-    try {
-      const js = s.replace(/\^/g, '**').replace(/sqrt/g, 'Math.sqrt');
-      const v = Function('"use strict";return (' + js + ')')();
-      if (typeof v !== 'number' || !isFinite(v)) return null;
-      return { expr: s, value: v };
-    } catch (e) { return null; }
+  // ================= CALCULADORA EXATA (não usa o cérebro: nunca erra a conta) =================
+  // Números por extenso: "dois mil e quinhentos" -> 2500, "três vírgula cinco" -> 3.5, "um e meio" -> 1.5
+  const NW_UNI = { zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16, dezessete: 17, dezoito: 18, dezenove: 19 };
+  const NW_DEZ = { vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60, setenta: 70, oitenta: 80, noventa: 90 };
+  const NW_CEN = { cem: 100, cento: 100, duzentos: 200, duzentas: 200, trezentos: 300, trezentas: 300, quatrocentos: 400, quatrocentas: 400, quinhentos: 500, quinhentas: 500, seiscentos: 600, seiscentas: 600, setecentos: 700, setecentas: 700, oitocentos: 800, oitocentas: 800, novecentos: 900, novecentas: 900 };
+  const NW_MUL = { mil: 1e3, milhao: 1e6, milhoes: 1e6, bilhao: 1e9, bilhoes: 1e9, trilhao: 1e12, trilhoes: 1e12 };
+  const isNW = w => w in NW_UNI || w in NW_DEZ || w in NW_CEN || w in NW_MUL;
+  function wordsToNumbers(s) {
+    const t = s.split(/\s+/), out = [];
+    for (let i = 0; i < t.length;) {
+      if (!isNW(t[i]) || ((t[i] === 'um' || t[i] === 'uma') && !(isNW(t[i + 1] || '') || t[i + 1] === 'e' || t[i + 1] === 'virgula'))) {
+        if ((t[i] === 'um' || t[i] === 'uma') && /^(terco|quarto|quinto|decimo|meio)$/.test(t[i + 1] || '')) { out.push('1'); i++; continue; }
+        const prev = t[i - 1] || '', next = t[i + 1];
+        if ((t[i] === 'um' || t[i] === 'uma') && (next === undefined || /^(mais|menos|vezes|dividido|elevado|x|ao|sobre|multiplicado)$/.test(next) || /^(mais|menos|vezes|por|a|sobre|de|entre)$/.test(prev))) { out.push('1'); i++; continue; }
+        out.push(t[i]); i++; continue;
+      }
+      let total = 0, cur = 0, j = i, used = false;
+      while (j < t.length) {
+        const w = t[j];
+        if (w in NW_UNI) cur += NW_UNI[w];
+        else if (w in NW_DEZ) cur += NW_DEZ[w];
+        else if (w in NW_CEN) cur += NW_CEN[w];
+        else if (w in NW_MUL) { total += (cur || 1) * NW_MUL[w]; cur = 0; }
+        else if (w === 'e' && used && isNW(t[j + 1] || '') && !(t[j + 1] in NW_MUL)) { j++; continue; }
+        else break;
+        used = true; j++;
+      }
+      let val = total + cur;
+      if (t[j] === 'e' && t[j + 1] === 'meio') { val += 0.5; j += 2; }
+      else if (t[j] === 'virgula' && isNW(t[j + 1] || '')) {
+        let k = j + 1, dec = '';
+        if (t[k] in NW_UNI && NW_UNI[t[k]] < 10 && (t[k + 1] in NW_UNI) && NW_UNI[t[k + 1]] < 10) { while (t[k] in NW_UNI && NW_UNI[t[k]] < 10) { dec += NW_UNI[t[k]]; k++; } }
+        else { const r = wordsToNumbers(t.slice(k, k + 6).join(' ')).split(' ')[0]; if (/^\d+$/.test(r)) { dec = r; let c = 0; while (k < t.length && (isNW(t[k]) || t[k] === 'e') && c < 6) { k++; c++; } } }
+        if (dec) { val = parseFloat(val + '.' + dec); j = k; }
+      }
+      out.push(String(val)); i = j;
+    }
+    return out.join(' ');
   }
-  const fmtNum = v => Number(v.toFixed(6)).toLocaleString('pt-BR', { maximumFractionDigits: 6 });
+  // Avaliador próprio (sem eval): + - × ÷ ^ % ! ( ) raiz, com prioridade certa das operações
+  function evalExpr(src) {
+    const toks = src.match(/\d+(?:\.\d+)?(?:e[+-]?\d+)?|sqrt|cbrt|mod|[+\-*/^%!()]/g);
+    if (!toks || toks.join('') !== src.replace(/\s+/g, '')) throw new Error('expressão inválida');
+    let i = 0;
+    const peek = () => toks[i], eat = x => { if (toks[i] !== x) throw new Error('esperava ' + x); i++; };
+    const expr = () => { let v = term(); while (peek() === '+' || peek() === '-') { const o = toks[i++], r = term(); v = o === '+' ? v + r : v - r; } return v; };
+    const term = () => {
+      let v = unary();
+      while (peek() === '*' || peek() === '/' || peek() === 'mod' || (peek() === '(' ) || /^\d/.test(peek() || '') || peek() === 'sqrt' || peek() === 'cbrt') {
+        let o = peek();
+        if (o === '*' || o === '/' || o === 'mod') i++; else o = '*';           // "2(3+4)" = 2 × (3+4)
+        const r = unary();
+        if (o === '/' || o === 'mod') { if (r === 0) throw Object.assign(new Error('divisão por zero'), { div0: true }); v = o === '/' ? v / r : ((v % r) + r) % r; }
+        else v = v * r;
+      }
+      return v;
+    };
+    const unary = () => { if (peek() === '-') { i++; return -unary(); } if (peek() === '+') { i++; return unary(); } return power(); };
+    const power = () => { const b = postfix(); if (peek() === '^') { i++; const e = unary(); const v = Math.pow(b, e); if (!isFinite(v)) throw new Error('número grande demais'); return v; } return b; };
+    const fact = n => { if (n < 0 || n > 170 || !Number.isInteger(n)) throw new Error('fatorial só de inteiros de 0 a 170'); let r = 1; for (let k = 2; k <= n; k++) r *= k; return r; };
+    const postfix = () => { let v = primary(); while (peek() === '!' || peek() === '%') { v = toks[i++] === '!' ? fact(v) : v / 100; } return v; };
+    const primary = () => {
+      const t = toks[i];
+      if (t === undefined) throw new Error('faltou um número');
+      if (t === '(') { i++; const v = expr(); eat(')'); return v; }
+      if (t === 'sqrt' || t === 'cbrt') { i++; const v = peek() === '(' ? (i++, (() => { const x = expr(); eat(')'); return x; })()) : unary(); if (t === 'sqrt' && v < 0) throw new Error('raiz de número negativo'); return t === 'sqrt' ? Math.sqrt(v) : Math.cbrt(v); }
+      if (/^\d/.test(t)) { i++; return parseFloat(t); }
+      throw new Error('símbolo inesperado ' + t);
+    };
+    const v = expr();
+    if (i !== toks.length) throw new Error('sobrou ' + toks.slice(i).join(''));
+    if (!isFinite(v)) throw new Error('resultado infinito');
+    return v;
+  }
+  const exactNum = v => (Math.abs(v) < 1e-12 ? 0 : parseFloat(v.toPrecision(12)));           // tira o "0,30000000000000004"
+  const fmtNum = v => {
+    v = exactNum(v);
+    if (Math.abs(v) >= 1e15) { const e = Math.floor(Math.log10(Math.abs(v))); return (v / Math.pow(10, e)).toLocaleString('pt-BR', { maximumFractionDigits: 4 }) + ' × 10^' + e; }
+    return v.toLocaleString('pt-BR', { maximumFractionDigits: Math.abs(v) < 1 ? 8 : 6 });
+  };
+  const NUMP = '(-?\\d+(?:\\.\\d+)?)';
+  function mathText(q) {
+    let s = norm(q).replace(/\?+\s*$/, '').replace(/(\D)!+\s*$/, '$1').replace(/\bpor cento\b/g, '%').trim()
+      .replace(/^(jarvis[,!. ]*)?(me (diz|diga|fala|fale) )?(quanto (e|da|fica|vale|sao)|calcule|calcula|calcular|faz a conta( de)?|faca a conta( de)?|qual (e )?o resultado de|qual e|resolve|resolva)\s*/, '')
+      .replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2').replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2')   // 1.000.000 -> 1000000
+      .replace(/(\d),(\d)/g, '$1.$2');                                                       // 3,5 -> 3.5
+    s = wordsToNumbers(s).replace(/\s+/g, ' ').trim();
+    return s;
+  }
+  // Entende a conta pedida e calcula. Devolve { expr (como falar), value } ou { error } ou null (não é conta)
+  function tryMath(q) {
+    const s = mathText(q); let m;
+    const N = x => parseFloat(x);
+    const R = (expr, value) => ({ expr, value: exactNum(value) });
+    if (!/\d/.test(s)) return null;
+    // porcentagens
+    if ((m = s.match(new RegExp('^' + NUMP + '\\s*(?:%|por cento)\\s*(?:de|sobre)\\s*' + NUMP + '$')))) return R(fmtNum(N(m[1])) + '% de ' + fmtNum(N(m[2])), N(m[1]) * N(m[2]) / 100);
+    if ((m = s.match(new RegExp('^' + NUMP + '\\s*(?:e|representa|equivale a|corresponde a)\\s*quantos? (?:%|por cento) de\\s*' + NUMP + '$'))) || (m = s.match(new RegExp('^quantos? (?:%|por cento) (?:e|sao|representa)?\\s*' + NUMP + '\\s*(?:de|em relacao a)\\s*' + NUMP + '$')))) {
+      if (N(m[2]) === 0) return { error: 'Não dá para calcular porcentagem de zero, senhor.' };
+      return R(fmtNum(N(m[1])) + ' em ' + fmtNum(N(m[2])) + ' (em %)', N(m[1]) / N(m[2]) * 100);
+    }
+    if ((m = s.match(new RegExp('^' + NUMP + '\\s*(mais|menos|\\+|-)\\s*' + NUMP + '\\s*(?:%|por cento)$')))) { const up = m[2] === 'mais' || m[2] === '+'; return R(fmtNum(N(m[1])) + (up ? ' + ' : ' − ') + fmtNum(N(m[3])) + '%', N(m[1]) * (1 + (up ? 1 : -1) * N(m[3]) / 100)); }
+    if ((m = s.match(new RegExp('^(?:um |uma )?(aumento|acrescimo|reajuste|desconto|reducao|abatimento) de\\s*' + NUMP + '\\s*(?:%|por cento)\\s*(?:em|sobre|no valor de|de)\\s*' + NUMP + '$'))) || (m = s.match(new RegExp('^' + NUMP + '\\s*com\\s*(?:um |uma )?(aumento|acrescimo|reajuste|desconto|reducao|abatimento) de\\s*' + NUMP + '\\s*(?:%|por cento)$')))) {
+      const word = isNaN(m[1]) ? m[1] : m[2], pct = isNaN(m[1]) ? N(m[2]) : N(m[3]), base = isNaN(m[1]) ? N(m[3]) : N(m[1]);
+      const down = /desconto|reducao|abatimento/.test(word);
+      return R(fmtNum(base) + ' com ' + (down ? 'desconto' : 'aumento') + ' de ' + fmtNum(pct) + '%', base * (1 + (down ? -1 : 1) * pct / 100));
+    }
+    // média, dobro, metade, frações, fatorial, resto, raízes
+    if ((m = s.match(/^(?:a )?media (?:aritmetica )?(?:de|entre|dos numeros)?\s*(.+)$/))) {
+      const nums = (m[1].match(/-?\d+(?:\.\d+)?/g) || []).map(N);
+      if (nums.length >= 2) return R('média de ' + nums.map(fmtNum).join(', '), nums.reduce((a, b) => a + b, 0) / nums.length);
+    }
+    const MULW = { dobro: 2, triplo: 3, quadruplo: 4, quintuplo: 5, metade: 0.5, terco: 1 / 3, quarto: 0.25, quinto: 0.2, decimo: 0.1 };
+    if ((m = s.match(new RegExp('^(?:o |a |1 )?(dobro|triplo|quadruplo|quintuplo|metade|terco|quarto|quinto|decimo) de\\s*' + NUMP + '$')))) return R(m[1] + ' de ' + fmtNum(N(m[2])), MULW[m[1]] * N(m[2]));
+    if ((m = s.match(new RegExp('^(?:o )?fatorial de\\s*' + NUMP + '$')))) { try { return R(fmtNum(N(m[1])) + '!', evalExpr(m[1] + '!')); } catch (e) { return { error: 'O fatorial só existe para números inteiros de 0 a 170, senhor.' }; } }
+    if ((m = s.match(new RegExp('^(?:o )?resto da divisao de\\s*' + NUMP + '\\s*por\\s*' + NUMP + '$')))) { if (N(m[2]) === 0) return { error: 'Não dá para dividir por zero, senhor.' }; return R('resto de ' + fmtNum(N(m[1])) + ' ÷ ' + fmtNum(N(m[2])), ((N(m[1]) % N(m[2])) + N(m[2])) % N(m[2])); }
+    // expressão geral
+    let e = ' ' + s + ' ';
+    e = e.replace(/\babre parenteses\b/g, '(').replace(/\bfecha parenteses\b/g, ')')
+      .replace(/\braiz quadrada de\b/g, ' sqrt ').replace(/\braiz cubica de\b/g, ' cbrt ').replace(/\braiz de\b/g, ' sqrt ').replace(/√/g, ' sqrt ')
+      .replace(/\bao quadrado\b/g, '^2').replace(/\bao cubo\b/g, '^3').replace(/²/g, '^2').replace(/³/g, '^3')
+      .replace(/\b(?:elevado (?:a|ao|na)|na potencia(?: de)?|elevado)\b/g, '^')
+      .replace(/\bfatorial\b/g, '!')
+      .replace(/\b(?:multiplicado por|vezes)\b/g, '*').replace(/(\d)\s*[x×]\s*(?=[\d(-])/g, '$1*').replace(/\bx\b/g, '*')
+      .replace(/\b(?:dividido por|dividido|sobre)\b/g, '/').replace(/÷/g, '/')
+      .replace(/\bmais\b/g, '+').replace(/\bmenos\b/g, '-').replace(/\bpor cento\b/g, '%').replace(/\bmod\b/g, ' mod ')
+      .replace(/\s+/g, ' ').trim();
+    if (!/[+\-*/^%!]|sqrt|cbrt|mod/.test(e) || /[a-z]/.test(e.replace(/sqrt|cbrt|mod/g, ''))) return null;
+    if (/^-?\d+(?:\.\d+)?$/.test(e)) return null;
+    try { return R(e.replace(/\*/g, ' × ').replace(/\//g, ' ÷ ').replace(/sqrt/g, '√').replace(/cbrt/g, '∛').replace(/\s+/g, ' ').trim(), evalExpr(e)); }
+    catch (err) { return err.div0 ? { error: 'Não dá para dividir por zero, senhor.' } : /raiz de número negativo/.test(err.message) ? { error: 'Raiz quadrada de número negativo não existe nos números reais, senhor.' } : null; }
+  }
+  // Confere as contas que o cérebro escreveu numa resposta ("12 × 3 = 36") e corrige se estiverem erradas
+  function fixArithmetic(text) {
+    return String(text || '').replace(/(-?\d[\d.]*(?:,\d+)?)\s*([+\-−×x*\/÷])\s*(-?\d[\d.]*(?:,\d+)?)\s*=\s*(-?\d[\d.]*(?:,\d+)?)/g, (all, a, op, b, c) => {
+      const P = x => parseFloat(x.replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
+      const A = P(a), B = P(b), C = P(c), o = op === '×' || op === 'x' || op === '*' ? '*' : op === '÷' || op === '/' ? '/' : op === '−' ? '-' : op;
+      if ([A, B, C].some(isNaN) || (o === '/' && B === 0)) return all;
+      const v = o === '+' ? A + B : o === '-' ? A - B : o === '*' ? A * B : A / B;
+      return Math.abs(v - C) <= Math.max(1e-9, Math.abs(v) * 1e-9) || (Math.abs(v - C) < 0.01 && !Number.isInteger(v)) ? all : all.slice(0, all.lastIndexOf(c)) + fmtNum(v);
+    });
+  }
 
   const CREATIVE_RE = /\b(piada|poema|poesia|historia|historinha|conto|invente|inventa|crie|cria|escreva|escreve|imagine|rima|charada|adivinha|trava-lingua)\b/;
   const OPINION_RE = /\b(o que voce acha|qual (e )?(a )?sua opiniao|voce gosta|voce prefere|me (de|da) um conselho|me aconselh|o que voce faria)\b/;
-  const QUESTION_RE = /\?\s*$|^(jarvis[, ]*)?(quem|qual|quais|quando|onde|como|por que|porque|quanto|quantos|quantas|o que|que|existe|e verdade|sera que|me (diga|fale|conta|conte|explique|explica)|sabe)\b|\b(pesquis|procur|busc)/;
+  const QUESTION_RE = /\?\s*$|^(jarvis[, ]*)?(quem|qual|quais|quando|onde|como|por que|porque|pra que|para que|quanto|quantos|quantas|o que|que|existe|e verdade|sera que|me (diga|fale|fala|conta|conte|explique|explica|ensina|ensine)|fala sobre|fale sobre|sabe)\b|\b(pesquis|procur|busc)/;
   const SELF_RE = /^(quem e voce|quem (e que )?te (criou|fez)|qual (e )?(o )?seu nome|o que voce (e|faz|pode fazer|consegue fazer)|como voce (esta|funciona)|voce (e|esta|tem|gosta) )/;
   const FOLLOW_RE = /^(e |e,|e o |e a |mais sobre|fala mais|conta mais|continua|e depois)/;
   const PRONOUN_RE = /\b(ele|ela|eles|elas|dele|dela|deles|delas|nele|nela|isso|disso|nisso|esse|essa|esses|essas|la|ali)\b/;
@@ -1120,6 +1301,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
 
   // Decide o que fazer sem gastar o cérebro: regras rápidas, inclusive para perguntas de continuação
   function route(q) {
+    const doc = textToAnalyze(q);
+    if (doc) return { acao: 'texto', ...doc };
     const n = norm(q).replace(/^jarvis[,!. ]*/, '');
     const words = n.split(/\s+/).filter(Boolean).length;
     const math = tryMath(q);
@@ -1162,9 +1345,15 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (url && /\b(le|leia|ler|abre|abrir|abra|resum|site|pagina|link)/.test(n)) return { acao: 'ler', url: url[1] };
     if (CREATIVE_RE.test(n) || OPINION_RE.test(n) || SELF_RE.test(n)) return { acao: 'responder' };
 
-    if (follow && lastPlan.acao === 'pesquisar') return { acao: 'pesquisar', consulta: (lastPlan.consulta + ' ' + cleanQuery(q)).slice(0, 120) };
-    if (QUESTION_RE.test(n) || SEARCH_RE.test(n)) return { acao: 'pesquisar', consulta: cleanQuery(q) || q };
-    return { acao: 'responder' };
+    if (follow && lastPlan.acao === 'pesquisar') return { acao: 'pesquisar', consulta: (lastPlan.consulta + ' ' + cleanQuery(q).replace(/\b(isso|disso|nisso|sobre|ele|ela|dele|dela|esse|essa|mais)\b/gi, '')).replace(/\s+/g, ' ').trim().slice(0, 120) };
+    const why = needsSearch(q);
+    if (why) {
+      let consulta = cleanQuery(q) || q;
+      // "pesquisa isso" / "procura sobre ele": usa o assunto da pergunta anterior
+      if (consulta.split(/\s+/).length <= 3 && PRONOUN_RE.test(norm(consulta)) && history.length) consulta = (cleanQuery(history[history.length - 1].q) + ' ' + consulta.replace(/\b(isso|disso|sobre|ele|ela|esse|essa)\b/gi, '')).trim().slice(0, 120);
+      return { acao: 'pesquisar', consulta, motivo: why };
+    }
+    return { acao: 'responder', pergunta: QUESTION_RE.test(n) };
   }
 
   // ================= FERRAMENTAS (grátis, sem chave) =================
@@ -1335,7 +1524,17 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     };
     if (page) add(page, page.body);
     items.forEach(it => { if (!page || it.url !== page.url) add(it, relevant(it.text, q + ' ' + query, 350)); });
-    return { text: parts.join('\n'), sources, failed: !parts.length };
+    // Conferência: quantas fontes independentes (sites diferentes) dizem isso?
+    let hosts = [...new Set(sources.map(x => host(x.url)).filter(Boolean))];
+    if (hosts.length < 2 && parts.length && budget >= 120) {
+      try {
+        const extra = (await searchWikipedia(plan.consulta || q, 'en')).concat(query !== (plan.consulta || q) ? await searchWeb(plan.consulta || q).catch(() => []) : []);
+        extra.filter(it => !hosts.includes(host(it.url))).slice(0, 2).forEach(it => add(it, relevant(it.text, q + ' ' + query, 300)));
+        hosts = [...new Set(sources.map(x => host(x.url)).filter(Boolean))];
+      } catch (e) {}
+    }
+    const head = 'FONTES INDEPENDENTES: ' + hosts.length + ' (' + hosts.join(', ') + ').';
+    return { text: head + '\n' + parts.join('\n'), sources, failed: !parts.length, hosts: hosts.length };
   }
 
   // ================= MEMÓRIA DO JARVIS (fica só neste celular) =================
@@ -1371,6 +1570,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     { cat: null, re: /\beu (?:gosto muito de|gosto de|adoro|amo)\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu gosto de ' + v },
     { cat: null, re: /\beu (?:nao gosto de|odeio|detesto)\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu não gosto de ' + v },
     { cat: null, re: /\beu sou alergic[oa] (?:a|ao|a)\s+(.{3,40}?)(?:[,.!?]|$)/, fmt: v => 'eu sou alérgico a ' + v },
+    { cat: null, re: /\beu prefiro\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu prefiro ' + v },
+    { cat: 'objetivo', re: /\b(?:meu objetivo|minha meta|meu sonho|meu foco)\s+(?:e|eh|agora e)\s+(.{3,60}?)(?:[,.!?]|$)/, fmt: v => 'meu objetivo é ' + v },
+    { cat: null, re: /\beu (?:quero|preciso|pretendo) aprender\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu quero aprender ' + v },
+    { cat: null, re: /\beu tenho (?:muita )?dificuldade (?:em|com|de|para)\s+(.{3,50}?)(?:[,.!?]|$)/, fmt: v => 'eu tenho dificuldade em ' + v },
+    { cat: 'estudo', re: /\beu (?:sou|to|estou) (?:no|na|em|cursando)\s+((?:\d+|primeiro|segundo|terceiro)[ºo°]? ano|faculdade de .{3,30}?|ensino medio|curso de .{3,30}?)(?:[,.!?]|$)/, fmt: v => 'eu estou no ' + v },
+    { cat: null, re: /\b(?:minha|meu) (prova|teste|trabalho|entrega|apresentacao|seminario|reuniao|consulta) (?:de|do|da|com)\s+(.{2,30}?)\s+(?:e|eh|vai ser|sera|cai)\s+(?:dia |no dia |na |no |em |as )?(.{2,30}?)(?:[,.!?]|$)/,
+      fmt: (v, m, q, o) => (/^(trabalho|teste|seminario)$/.test(m[1]) ? 'meu ' : 'minha ') + o(m[1]) + ' de ' + o(m[2]) + ' é ' + v, key: m => 'prazo:' + m[1] + ':' + m[2], group: 3 },
     { cat: null, re: /\beu (?:sou vegetarian[oa]|sou vegan[oa]|nao como carne)\b()/, fmt: (v, m, q) => norm(q).includes('vegan') ? 'eu sou vegano' : 'eu sou vegetariano' }
   ];
   // Procura fatos sobre você numa frase qualquer
@@ -1415,7 +1621,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     saveMemories(); return before - memories.length;
   }
   // Escolhe só o que importa para esta pergunta (o básico sempre vai junto) — memória grande sem pesar no cérebro
-  const CORE = ['nome', 'cidade', 'idade', 'trabalho', 'estudo'];
+  const CORE = ['nome', 'cidade', 'idade', 'trabalho', 'estudo', 'objetivo'];
   function pickMemories(q, max = 8) {
     if (!memories.length) return [];
     if (memories.reduce((a, m) => a + m.text.length + 2, 0) <= 500) return memories.slice();   // pouca coisa: vai tudo
@@ -1765,10 +1971,81 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     return null;
   }
 
+  // Se a resposta parou no meio de uma frase, termina na última frase completa
+  // Deixa a resposta coerente: sem "Resposta:", sem repetir a pergunta e sem frases repetidas
+  function tidyAnswer(t) {
+    t = String(t || '').replace(/^\s*(resposta|jarvis|assistente)\s*:\s*/i, '').replace(/^\s*pergunta:[^\n]*\n+/i, '').trim();
+    const seen = [], out = [];
+    for (const sent of splitSentences(t)) {
+      const w = new Set(norm(sent).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(x => x.length > 2));
+      const dup = w.size >= 3 && seen.some(o => { let c = 0; w.forEach(x => { if (o.has(x)) c++; }); return c / Math.max(w.size, o.size) >= 0.8; });
+      if (!dup) { out.push(sent); seen.push(w); }
+    }
+    return out.length ? out.join(' ') : t;
+  }
+  function endAtSentence(t) {
+    t = String(t || '').trim();
+    if (t.length < 40 || /[.!?…]["”')]*$/.test(t)) return t;
+    const m = t.match(/^[\s\S]*[.!?…]["”')]*(?=\s)/);
+    return m && m[0].length > t.length * 0.45 ? m[0] : t + '…';
+  }
+  // ----- Interpretação de texto: acha as frases mais importantes (prazos, pedidos, números, o que importa ao usuário) -----
+  const IMPORTANT_RE = /\b(prazo|ate o dia|até o dia|ate dia|até dia|urgente|importante|obrigatori|atencao|atenção|reuniao|reunião|entrega|entregar|prova|exame|pagar|pagamento|vencimento|vence|valor|custo|preco|preço|decid|aprovad|cancelad|confirm|precisa|deve|devem|necessario|necessário|solicit|pedido|resultado|conclus|portanto|porque|objetivo)\w*/i;
+  function splitSentences(text) {
+    return (String(text || '').replace(/\s+/g, ' ').match(/[^.!?…]+[.!?…]+["”')]*|[^.!?…]+$/g) || []).map(x => x.trim()).filter(x => x.length > 2);
+  }
+  function importantSentences(text, n = 4) {
+    const sents = splitSentences(text);
+    if (sents.length <= n) return sents;
+    const freq = {};
+    sents.forEach(s => keywords(s).forEach(k => { freq[k] = (freq[k] || 0) + 1; }));
+    const userKw = new Set(memories.flatMap(m => keywords(m.text)));
+    const scored = sents.map((s, i) => {
+      const kw = keywords(s); let sc = 0;
+      kw.forEach(k => { sc += Math.min(freq[k], 4); if (userKw.has(k)) sc += 2; });
+      sc = sc / Math.sqrt(kw.length + 1);
+      if (IMPORTANT_RE.test(s)) sc += 2.5;
+      if (/\d/.test(s)) sc += 1;
+      if (/\b(dia|data|hora|segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo|janeiro|fevereiro|marco|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/i.test(s)) sc += 1.2;
+      if (i === 0) sc += 1.5; else if (i < 3) sc += 0.5;
+      if (s.length < 25) sc -= 1;
+      return { s, i, sc };
+    });
+    return scored.sort((a, b) => b.sc - a.sc).slice(0, n).sort((a, b) => a.i - b.i).map(x => x.s);
+  }
+  // Separa "o que fazer" do texto colado: "Resuma isso: <texto>" ou só um texto grande
+  function textToAnalyze(q) {
+    const t = String(q || '').trim();
+    if (t.length < 300) return null;
+    const c = t.indexOf(':');
+    if (c > 3 && c < 160 && t.length - c > 200) return { pedido: t.slice(0, c).trim(), texto: t.slice(c + 1).trim() };
+    const nl = t.indexOf('\n');
+    if (nl > 3 && nl < 160 && t.length - nl > 200) return { pedido: t.slice(0, nl).trim(), texto: t.slice(nl + 1).trim() };
+    return t.length >= 450 ? { pedido: '', texto: t } : null;
+  }
+  // Texto grande: lê por partes (o cérebro do celular tem pouca memória), resume cada parte e depois junta
+  async function digestText(texto, myTurn, onStep) {
+    const sents = splitSentences(texto), parts = []; let cur = '';
+    sents.forEach(x => { if ((cur + ' ' + x).length > 1300 && cur) { parts.push(cur); cur = x; } else cur = cur ? cur + ' ' + x : x; });
+    if (cur) parts.push(cur);
+    if (parts.length <= 1) return { full: texto.slice(0, 1500), parts: 1 };
+    const use = parts.slice(0, 6), notes = [];
+    for (let i = 0; i < use.length; i++) {
+      if (myTurn !== turnId) return null;
+      onStep('Lendo o texto (parte ' + (i + 1) + ' de ' + use.length + ')…');
+      const r = await generate([{ role: 'system', content: 'Você extrai o essencial de textos em português.' },
+        { role: 'user', content: 'Trecho ' + (i + 1) + ' de ' + use.length + ':\n' + use[i] + '\n\nEm 2 ou 3 frases curtas, diga só o que é importante neste trecho (ideia principal, pedidos, prazos, datas, valores, decisões). Sem introdução.' }],
+        { max: 120, temperature: 0.2 });
+      notes.push('Parte ' + (i + 1) + ': ' + r.trim());
+    }
+    return { notes: notes.join('\n'), parts: use.length, cut: parts.length > use.length };
+  }
+
   // ================= RESPOSTA RÁPIDA (sem esperar o cérebro) =================
   function quickReply(plan, q, material) {
-    if (plan.acao === 'conta') return 'O resultado é ' + fmtNum(plan.math.value) + ', senhor.';
+    if (plan.acao === 'conta') return plan.math.error || ('O resultado é ' + fmtNum(plan.math.value) + ', senhor.');
     if (plan.acao === 'exato') return plan.calc.expr + ', senhor.';
+    if (plan.acao === 'texto') return 'O mais importante do texto, senhor: ' + importantSentences(plan.texto, 3).join(' ');
     const n = norm(q);
     if (plan.acao === 'responder') {
       if (/^(obrigad|valeu|brigad)/.test(n)) return 'Disponha, senhor.';
@@ -1785,24 +2062,30 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (plan.acao === 'clima' && /nao disse a cidade/.test(norm(body))) return 'Para qual cidade, senhor? Diga, por exemplo: clima em Salvador.';
     if (plan.acao === 'clima') return (body.match(/[^.]+\./g) || [body]).slice(0, 3).map(x => x.trim()).join(' ');
     if (plan.acao === 'cotacao') return body.replace(/^Cotação: /, 'A cotação é ').replace(/\s*\(atualizada[^)]*\)/, '').trim();
-    const first = (body.split('\n')[0] || '').replace(/^- /, '').replace(/^\[Página\] \S+: /, '');
+    const single = /^FONTES INDEPENDENTES: 1\b/.test(body);
+    const lines = body.split('\n').filter(l => !/^(FONTES INDEPENDENTES|VERIFICAÇÃO):/.test(l));
+    const first = (lines[0] || '').replace(/^- /, '').replace(/^\[Página\] \S+: /, '');
     const text = first.includes('): ') ? first.slice(first.indexOf('): ') + 3) : first;
     const pick = (relevant(text, q, 320).match(/[^.!?]+[.!?]+/g) || [text]).slice(0, 2).join(' ').trim();
-    return pick ? 'Encontrei isto, senhor: ' + short(pick, 320) : 'Não encontrei uma resposta clara, senhor.';
+    return pick ? 'Encontrei isto, senhor: ' + short(pick, 320) + (single ? ' Atenção: só achei uma fonte sobre isso, então não está confirmado.' : '') : 'Não encontrei uma resposta clara, senhor.';
   }
 
   // ================= RESPONDER =================
   const SYSTEM = [
     'Você é JARVIS, assistente pessoal por voz: educado, eficiente, com humor seco e discreto. Chame o usuário de "senhor".',
     'Responda em português do Brasil, direto, em 1 a 3 frases curtas, salvo se pedirem detalhes. A resposta será falada: sem markdown, listas, emojis ou links.',
-    'Se vier MATERIAL, use só ele para fatos, números e datas, preferindo o mais recente; se ele não tiver a resposta, diga que não encontrou. Sem material, responda com o que você sabe e nunca invente números ou datas.',
-    'Use o que você sabe sobre o usuário de forma natural, só quando ajudar, e às vezes chame-o pelo nome se souber. Se vierem conversas anteriores, use-as para dar continuidade. Se a pergunta for ambígua, responda a interpretação mais provável.'
+    'Comece pela resposta: responda exatamente o que foi perguntado, com palavras simples e precisas, sem rodeios e sem repetir a pergunta.',
+    'Se vier MATERIAL, use só ele para fatos, números e datas, preferindo o mais recente, e pode citar a fonte em poucas palavras (ex.: "segundo o g1"); se ele não tiver a resposta, diga que não encontrou. Sem material, responda com o que você sabe; se não tiver certeza, diga isso em poucas palavras, e nunca invente números, datas ou nomes.',
+    'Personalize: use os gostos, objetivos, dificuldades e prazos do usuário para escolher exemplos, priorizar o que importa para ele e ajustar a explicação ao nível dele.',
+    'Em lógica, contas, comparações e interpretação, raciocine com cuidado, confira se a conclusão segue dos fatos e aponte o que não está claro ou não foi comprovado.',
+    'Use o que você sabe sobre o usuário de forma natural, só quando ajudar, e às vezes chame-o pelo nome se souber. Se vierem conversas anteriores, use-as para dar continuidade. Se a pergunta for ambígua, responda a interpretação mais provável.',
+    'Coerência: siga o fio da conversa; "ele", "isso" e "e o…" se referem ao que acabou de ser falado. Não contradiga o que você disse antes; se errou, diga "corrigindo" e corrija. Organize assim: primeiro a resposta, depois o motivo ou um detalhe útil. Cada frase deve continuar a anterior. Não mude de assunto, não repita frases e não acrescente coisas que não foram pedidas.'
   ].join('\n');
   const contextLine = q => 'Agora: ' + new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' }) + '.' + (settings.city ? ' Usuário mora em ' + settings.city + '.' : '') + memoryLine(q);
   const short = (t, n) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t);
   function buildMessages(q, material, withHistory) {
     const msgs = [{ role: 'system', content: SYSTEM }];
-    if (withHistory) history.slice(-1).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 160) }); msgs.push({ role: 'assistant', content: short(h.a, 260) }); });
+    if (withHistory) history.slice(-2).forEach(h => { msgs.push({ role: 'user', content: short(h.q, 120) }); msgs.push({ role: 'assistant', content: short(h.a, 200) }); });   // as 2 últimas trocas, curtinhas
     msgs.push({ role: 'user', content: contextLine(q) + (material ? '\n' + material : '') + '\n\nPergunta: ' + q });
     return msgs;
   }
@@ -1839,9 +2122,14 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
 
   // Troca "meu/minha" por "seu/sua" para o Jarvis repetir o que você disse
-  const VERB3 = { moro: 'mora', gosto: 'gosta', tenho: 'tem', trabalho: 'trabalha', estudo: 'estuda', sou: 'é', adoro: 'adora', amo: 'ama', odeio: 'odeia', detesto: 'detesta', 'torço': 'torce', torco: 'torce', como: 'come', vou: 'vai', 'faço': 'faz', quero: 'quer', prefiro: 'prefere', uso: 'usa', jogo: 'joga', falo: 'fala', preciso: 'precisa', estou: 'está', sei: 'sabe', posso: 'pode', vivo: 'vive', nasci: 'nasceu', acordo: 'acorda', durmo: 'dorme', tomo: 'toma' };
+  const VERB3 = { moro: 'mora', gosto: 'gosta', tenho: 'tem', trabalho: 'trabalha', estudo: 'estuda', sou: 'é', adoro: 'adora', amo: 'ama', odeio: 'odeia', detesto: 'detesta', 'torço': 'torce', torco: 'torce', como: 'come', vou: 'vai', 'faço': 'faz', quero: 'quer', prefiro: 'prefere', pretendo: 'pretende', to: 'está', uso: 'usa', jogo: 'joga', falo: 'fala', preciso: 'precisa', estou: 'está', sei: 'sabe', posso: 'pode', vivo: 'vive', nasci: 'nasceu', acordo: 'acorda', durmo: 'dorme', tomo: 'toma' };
   const swapPerson = t => t.replace(/\beu (n[aã]o )?([a-zçãé]+)\b/gi, (w, no, v) => VERB3[v.toLowerCase()] ? 'o senhor ' + (no || '') + VERB3[v.toLowerCase()] : w).replace(/\b(meu|minha|meus|minhas|eu|mim|comigo)\b/gi, w => ({ meu: 'seu', minha: 'sua', meus: 'seus', minhas: 'suas', eu: 'o senhor', mim: 'o senhor', comigo: 'com o senhor' })[w.toLowerCase()]);
   function localReply(plan, q) {
+    if (plan.acao === 'conta') {
+      if (plan.math.error) return { reply: plan.math.error };
+      const v = fmtNum(plan.math.value), ex = plan.math.expr;
+      return { reply: (ex && ex !== v ? ex + ' = ' + v : 'O resultado é ' + v) + (/%\)$/.test(ex) ? '%' : '') + ', senhor.' };
+    }
     if (plan.acao === 'lembrar') {
       remember(plan.fato);
       return { reply: 'Anotado, senhor: ' + swapPerson(plan.fato).replace(/[.!]$/, '') + '.' };
@@ -1942,15 +2230,29 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       setPhase('thinking'); hint(useBrain ? '' : settings.noBrain ? 'Modo rápido.' : 'Resposta rápida: o cérebro ainda está carregando.');
 
       let material = '';
-      if (plan.acao === 'conta') {
+      if (plan.acao === 'texto') {
+        const pedido = plan.pedido ? 'O usuário pediu: "' + short(plan.pedido, 150) + '". Faça exatamente isso. ' : '';
+        const task = 'TAREFA: interprete o texto do usuário. ' + pedido + 'Diga a ideia principal, os pontos importantes (pedidos, prazos, datas, valores, decisões), o que exige alguma ação do usuário e o que pode ser ignorado. Quando fizer sentido, relacione com o que você sabe sobre o usuário. Não invente nada que não esteja no texto.';
+        if (useBrain) {
+          const d = await digestText(plan.texto, myTurn, t => { if (myTurn === turnId) setJarvisText(bubble, t); });
+          if (!d) { bubble.remove(); return; }
+          material = (d.notes ? 'PONTOS DO TEXTO (lido por partes):\n' + d.notes + (d.cut ? '\n(O texto era muito longo; só o começo foi lido.)' : '') : 'TEXTO DO USUÁRIO:\n' + d.full) + '\n' + task;
+        }
+      } else if (plan.acao === 'conta') {
         material = 'MATERIAL (cálculo exato feito pelo sistema): ' + plan.math.expr + ' = ' + fmtNum(plan.math.value) + '.';
       } else if (plan.acao === 'exato') {
         material = 'MATERIAL (resultado exato calculado pelo sistema, use exatamente): ' + plan.calc.expr + '.';
-      } else if (plan.acao !== 'responder' && !navigator.onLine) {
+      } else if (plan.acao !== 'responder' && plan.acao !== 'texto' && !navigator.onLine) {
         material = plan.acao === 'clima' || plan.acao === 'cotacao' || plan.acao === 'ler'
           ? 'MODO SEM INTERNET: não dá para consultar ' + (plan.acao === 'clima' ? 'o clima' : plan.acao === 'cotacao' ? 'a cotação' : 'sites') + ' agora. Diga isso ao usuário em uma frase e, se fizer sentido, ofereça o que você sabe de forma geral.'
           : 'MODO SEM INTERNET: responda com o seu próprio conhecimento. Se o assunto puder ter mudado recentemente, avise em poucas palavras que está sem internet e que a informação pode estar desatualizada.';
-      } else if (plan.acao !== 'responder') {
+      } else if (plan.acao !== 'responder' && plan.acao !== 'texto') {
+        const got = await searchMaterial(plan);
+        if (!got) { bubble.remove(); return; }
+        material = got.material; sources = got.sources;
+      }
+      async function searchMaterial(plan) {
+        let material = '', sources = [];
         setPhase('searching');
         const step = t => { if (myTurn === turnId) setJarvisText(bubble, t); };
         step(plan.acao === 'clima' ? 'Consultando o clima…' : plan.acao === 'cotacao' ? 'Consultando a cotação…' :
@@ -1959,33 +2261,38 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
           let r;
           if (plan.acao === 'clima') r = await getWeather(plan.cidade);
           else if (plan.acao === 'cotacao') r = await getCurrency(plan.moeda);
-          else if (plan.acao === 'ler') { const t = await readPage(plan.url); r = { text: '[Página] ' + plan.url + ': ' + relevant(t, q, 2600), sources: [{ url: /^https?:/.test(plan.url) ? plan.url : 'https://' + plan.url }] }; }
+          else if (plan.acao === 'ler') { const t = await readPage(plan.url); r = { text: '[Página] ' + plan.url + ': ' + (/\b(resum|importante|principa|interpret|analis|sobre o que|do que se trata)/.test(norm(q)) ? short(importantSentences(t, 10).join(' '), 1600) : relevant(t, q, 1600)), sources: [{ url: /^https?:/.test(plan.url) ? plan.url : 'https://' + plan.url }] }; }
           else r = await runSearch(q, plan, step);
           sources = r.sources || [];
           material = r.failed || !r.text
             ? 'A PESQUISA NÃO TROUXE NADA AGORA: responda com o seu próprio conhecimento e avise em poucas palavras que não conseguiu confirmar na internet.'
-            : 'MATERIAL (consultado agora):\n' + r.text;
+            : 'MATERIAL (consultado agora):\n' + r.text + (plan.acao === 'pesquisar'
+              ? '\nVERIFICAÇÃO: compare as fontes entre si antes de responder. Se concordarem, responda com segurança e cite duas delas. Se discordarem, diga que há divergência e mostre as versões. Se houver só uma fonte, responda mas avise que vem de uma fonte só e não está confirmada.' : '');
         } catch (e) {
           material = plan.acao === 'pesquisar'
             ? 'A PESQUISA FALHOU AGORA (internet instável): responda com o seu próprio conhecimento e avise em poucas palavras que não conseguiu confirmar na internet.'
             : 'A CONSULTA FALHOU AGORA (' + (e.message || 'erro') + '). Diga isso ao usuário em uma frase.';
         }
-        if (myTurn !== turnId) { bubble.remove(); return; }
+        if (myTurn !== turnId) return null;
         setPhase('thinking');
+        return { material, sources };
       }
 
       speaker = (mode === 'voice' || mode === 'text') && active ? newSpeaker() : null;
       let spokenUpTo = 0;
       let paintQueued = false, lastText = '';
+      const spokenSet = new Set();
+      const unique = chunkTxt => splitSentences(chunkTxt).filter(x => { const k = norm(x).replace(/[^a-z0-9 ]/g, '').trim(); if (k.length > 8 && spokenSet.has(k)) return false; spokenSet.add(k); return true; }).join(' ');
       const onText = t => {
           if (myTurn !== turnId) return;
+          if ((t.trim() && /^\s*P?E?S?Q?U?I?S?A?R?\s*$/.test(t)) || /^\s*\W*PESQUISAR/i.test(t)) return;   // o cérebro pediu pesquisa: não mostra nem fala
           lastText = t;
           if (!paintQueued) { paintQueued = true; requestAnimationFrame(() => { paintQueued = false; if (myTurn === turnId) setJarvisText(bubble, lastText || '…'); }); }
           if (!speaker) return;
           const rest = t.slice(spokenUpTo);
           let cut = -1, m; const re = /[.!?…;:](\s|$)/g;
           while ((m = re.exec(rest))) cut = m.index + 1;
-          if (cut >= 12 || (cut > 0 && spokenUpTo > 0)) { speaker.push(rest.slice(0, cut)); spokenUpTo += cut; }
+          if (cut >= 12 || (cut > 0 && spokenUpTo > 0)) { const u = unique(rest.slice(0, cut)); if (u) speaker.push(u); spokenUpTo += cut; }
       };
       // Conversas antigas sobre o mesmo assunto: o Jarvis dá continuidade
       const eps = relatedEpisodes(q);
@@ -1993,16 +2300,36 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       // Pediu detalhes? Resposta mais completa
       const wantsMore = /\b(detalh\w*|expliqu\w*|explica\w*|me fal[ae] mais|conta mais|passo a passo|como (?:se )?faz\w*|resum\w*|list\w*|compar\w*|diferenca)\b/.test(norm(q));
       if (wantsMore) material += (material ? '\n' : '') + 'O usuário quer uma resposta mais completa: use até 6 frases, ainda sem listas ou símbolos.';
-      const maxTok = wantsMore ? 380 : 180;
+      // Pergunta que pede raciocínio (lógica, comparação, "é verdade?"): o cérebro pensa antes de responder
+      const deep = useBrain && plan.acao !== 'conta' && plan.acao !== 'exato' && plan.acao !== 'texto' &&
+        /\b(por que|porque|logica|raciocin|analis|compar|vale a pena|qual (e )?(o |a )?melhor|faz sentido|e verdade|verdade que|deduz|conclu|explique por|se .{3,60} entao|qual a diferenca|quem esta certo)/.test(norm(q));
+      const mathy = useBrain && (String(q).match(/\d+(?:[.,]\d+)?/g) || []).length >= 2 && /\b(quant[oa]s?|calcul|total|sobra|soma|diferenca|media|porcent|por cento|lucro|preco|troco|dividir|cada um|velocidade|tempo|juros|parcela)/.test(norm(q));
+      const deepThink = deep || mathy;
+      const mayAskSearch = useBrain && navigator.onLine && plan.acao === 'responder' && plan.pergunta && !mathy && !CREATIVE_RE.test(norm(q)) && !OPINION_RE.test(norm(q)) && !SELF_RE.test(norm(q).replace(/^jarvis[,!. ]*/, ''));
+      if (mayAskSearch) material += (material ? '\n' : '') + 'Se você não souber a resposta com certeza, ou se ela depender de algo que pode ter mudado (fatos atuais, pessoas vivas, preços, produtos novos, notícias), responda somente a palavra PESQUISAR, sem mais nada.';
+      if (deepThink) hint(mathy ? 'Calculando com cuidado…' : 'Pensando com cuidado…');
+      const maxTok = plan.acao === 'texto' ? 400 : wantsMore ? 380 : 180;
       const foreign = /\b(ingles|espanhol|frances|alemao|italiano|japones|chines|coreano|russo|arabe|grego|hebraico|hindi|tailandes|latim|traduz\w*|traducao|idioma|lingua|alfabeto|kanji|emoji|simbolo|codigo|programa)/.test(norm(q));
       let raw;
+      const temp = CREATIVE_RE.test(norm(q)) ? 0.85 : OPINION_RE.test(norm(q)) ? 0.6 : (plan.acao === 'texto' || (material && !/^(Conversas anteriores|Se você não souber|O usuário quer)/.test(material))) ? 0.3 : 0.45;
       if (!useBrain) raw = quickReply(plan, q, material);
-      else try { raw = await generate(buildMessages(q, material, true), { max: maxTok, turn: myTurn, onText, foreign }); }
+      else try { raw = await generate(buildMessages(q, material, plan.acao !== 'texto'), { max: deepThink ? maxTok + 450 : maxTok, turn: myTurn, onText: mathy ? (t => { if (myTurn === turnId) setJarvisText(bubble, t || '…'); }) : onText, foreign, temperature: mathy ? 0.1 : temp, think: deepThink }); }
       catch (e) {
         if (!/context window|prompt tokens exceed/i.test(String(e && e.message))) throw e;
         // Pedido grande demais para a janela: tenta de novo enxuto, sem histórico
-        raw = await generate(buildMessages(q, material.slice(0, 1200), false), { max: maxTok, turn: myTurn, onText, foreign });
+        raw = await generate(buildMessages(q, material.slice(0, 1200), false), { max: maxTok, turn: myTurn, onText, foreign, temperature: temp });
       }
+      // O cérebro disse que não sabe com certeza: pesquisa e responde de novo com o material
+      if (useBrain && mayAskSearch && /^\s*\W*PESQUISAR/i.test(raw || '')) {
+        plan = { acao: 'pesquisar', consulta: cleanQuery(q) || q, motivo: 'cerebro' }; lastPlan = plan;
+        const got = await searchMaterial(plan);
+        if (!got) { bubble.remove(); return; }
+        sources = got.sources; spokenUpTo = 0; spokenSet.clear();
+        const mat2 = got.material + (eps.length ? '\nConversas anteriores sobre isso: ' + eps.map(e => '(' + epDate(e.t) + ') Usuário: ' + e.q + ' | Jarvis: ' + e.a).join(' || ') : '');
+        raw = await generate(buildMessages(q, mat2, true), { max: maxTok, turn: myTurn, onText, foreign, temperature: 0.3 });
+        if (/^\s*\W*PESQUISAR/i.test(raw || '')) raw = 'Não encontrei uma resposta confiável sobre isso, senhor.';
+      }
+      raw = fixArithmetic(tidyAnswer(endAtSentence(raw)));          // contas conferidas, frases repetidas removidas
       reply = raw.replace(/\*\*|__|#+ /g, '').trim() || 'Desculpe, senhor, não consegui formular uma resposta.';
       if (speaker && myTurn === turnId) speaker.push(raw.trim() ? raw.slice(spokenUpTo) : reply);
     } catch (e) {
@@ -2047,13 +2374,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
   function startRecognizer() {
     const r = new SR();
-    r.lang = 'pt-BR'; r.interimResults = true; r.maxAlternatives = 1;
+    r.lang = 'pt-BR'; r.interimResults = true; r.maxAlternatives = 4;
     r.continuous = !isAndroid;
     r._err = null; rec = r;
     r.onresult = e => {
       if (rec !== r) return;
       let fin = '', inter = '';
-      for (let i = 0; i < e.results.length; i++) { const res = e.results[i]; if (res.isFinal) fin += res[0].transcript + ' '; else inter += res[0].transcript; }
+      for (let i = 0; i < e.results.length; i++) { const res = e.results[i]; if (res.isFinal) fin += pickAlternative(res) + ' '; else inter += res[0].transcript; }
       heardFinal = fin.trim(); heardInterim = inter.trim(); showLive(); armSilence();
     };
     r.onerror = e => { r._err = e.error; };
@@ -2079,7 +2406,31 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
   function killRecognizer() { clearTimeout(silenceTimer); if (rec) { const r = rec; rec = null; try { r.abort(); } catch (e) {} } if (recorder) recorder.cancel(); }
   const STOP_RE = /^(jarvis[,!. ]*)?(encerrar|encerra|desligar|desliga|parar|pode parar|para de falar|pare de falar|cala a boca|fica quieto|silencio|chega|ja chega|so isso|e so isso|era so isso|tchau|tchau jarvis|ate logo|ate mais|valeu,? tchau|obrigado,? tchau)([,!. ]*jarvis)?[.!]*$/;
+  // Entre as possibilidades que o reconhecedor ouviu, escolhe a que faz mais sentido para o Jarvis
+  const VOCAB = /\b(jarvis|lembr|timer|alarme|despertador|clima|tempo|chuva|dolar|euro|cotacao|pesquis|youtube|whatsapp|agenda|lanterna|bateria|horas|minutos|quanto|quem|qual|onde|quando|como|abre|toca|liga|desliga|cancela|esquec|anota|meu nome|eu moro)\b/g;
+  function pickAlternative(res) {
+    let best = res[0].transcript, bestScore = -1;
+    for (let k = 0; k < res.length; k++) {
+      const t = res[k].transcript; if (!t) continue;
+      const n = norm(fixHeard(t));
+      let sc = (res[k].confidence || 0) * 2 + (k === 0 ? 0.6 : 0);          // a primeira costuma ser a melhor
+      sc += Math.min(3, (n.match(VOCAB) || []).length) * 0.5;
+      try { const a = route(fixHeard(t)).acao; if (a !== 'pesquisar' && a !== 'responder') sc += 1; } catch (e) {}
+      if (sc > bestScore) { bestScore = sc; best = t; }
+    }
+    return best;
+  }
+  // Corrige palavras que o reconhecedor costuma errar
+  function fixHeard(t) {
+    return String(t || '').trim()
+      .replace(/^(?:ei\s+|e\s+a[ií]\s+)?(?:jarbas|jarvas|jarves|jervis|djarvis|d jarvis|jarvi|jarviz|jarviss|jarvis)\b[,!.]?\s*/i, 'Jarvis, ')
+      .replace(/\b(?:you ?tube|iu ?tube|yu ?tubi|iutubi|youtub)\b/gi, 'YouTube')
+      .replace(/\b(?:whats ?app|whatsapp|uatsap|uatizap|zap ?zap)\b/gi, 'WhatsApp')
+      .replace(/\btaimer\b/gi, 'timer').replace(/\bálarme\b/gi, 'alarme')
+      .replace(/^Jarvis,\s*$/i, 'Jarvis');
+  }
   async function finishTurn(said) {
+    said = fixHeard(said);
     heardFinal = ''; heardInterim = ''; live.textContent = '';
     if (STOP_RE.test(norm(said.trim()))) {
       addMsg('user', said);
@@ -2112,7 +2463,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     const pool = navigator.onLine ? pt : (pt.filter(v => v.localService !== false).length ? pt.filter(v => v.localService !== false) : pt);
     return pool.find(v => /^pt[-_]BR/i.test(v.lang)) || pool[0] || null;
   }
-  const cleanForSpeech = t => String(t || '').replace(/https?:\/\/\S+/g, '').replace(/[*#_`>~|\[\]]/g, '').replace(/[^\p{Script=Latin}\p{N}\s.,!?;:'"()%°ºª$€+=\-–—…\/@&]/gu, ' ').replace(/\s+/g, ' ').trim();
+  // Fala as contas em português: "12 × 7 = 84" -> "12 vezes 7 é igual a 84"
+  const speakMath = t => String(t || '')
+    .replace(/(\d|\))\s*[×*]\s*(?=[\d(√-])/g, '$1 vezes ').replace(/(\d|\))\s*[÷]\s*/g, '$1 dividido por ').replace(/(\d)\s+\/\s+(?=\d)/g, '$1 dividido por ')
+    .replace(/(\d|\))\s*\^\s*(-?\d+)/g, '$1 elevado a $2').replace(/√\s*/g, 'raiz quadrada de ').replace(/∛\s*/g, 'raiz cúbica de ')
+    .replace(/(\d)!/g, '$1 fatorial').replace(/(\d|\))\s*\+\s*(?=[\d(-])/g, '$1 mais ').replace(/(\d|\))\s+[-−]\s+(?=[\d(-])/g, '$1 menos ')
+    .replace(/(^|[\s(])-(\d)/g, '$1menos $2').replace(/\s*=\s*/g, ' é igual a ').replace(/(\d)\s*%/g, '$1 por cento');
+  const cleanForSpeech = t => speakMath(t).replace(/https?:\/\/\S+/g, '').replace(/[*#_`>~|\[\]]/g, '').replace(/[^\p{Script=Latin}\p{N}\s.,!?;:'"()%°ºª$€+=\-–—…\/@&]/gu, ' ').replace(/\s+/g, ' ').trim();
   function chunk(text, max = 180, perSentence = false) {
     if (!text) return [];
     const sentences = text.match(/[^.!?…;]+[.!?…;]*\s*/g) || [text];
@@ -2298,11 +2655,20 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     if (await isCached()) loadEngine().catch(e => addMsg('sys', engineErrorText(e)));
   };
   const es = $('#engineSel'), fxs = $('#fxSel');
+  const vis = $('#voiceIdSel');
+  Object.entries(VOICES).forEach(([k, v]) => { const o = document.createElement('option'); o.value = k; o.textContent = v.label; vis.appendChild(o); });
+  vis.onchange = () => {
+    if (vis.value === settings.voiceId) return;
+    settings.voiceId = vis.value; saveSettings();
+    releaseTts(); jarvisVoiceReady = false; jarvisVoiceOnPhone = false;
+    refreshVoiceUI();
+  };
   async function refreshVoiceUI() {
-    es.value = settings.voiceEngine; fxs.value = settings.voiceFx;
+    es.value = settings.voiceEngine; fxs.value = settings.voiceFx; vis.value = settings.voiceId;
+    $('#voiceIdRow').style.display = settings.voiceEngine === 'jarvis' ? '' : 'none';
     const has = jarvisVoiceReady || await jarvisVoiceDownloaded();
     const dl = $('#jarvisVoiceDl'), note = $('#jarvisVoiceNote');
-    if (settings.voiceEngine === 'jarvis' && !has) { dl.style.display = ''; note.textContent = 'A voz do Jarvis ainda não foi baixada. Até lá, ele usa a voz do celular.'; }
+    if (settings.voiceEngine === 'jarvis' && !has) { dl.style.display = ''; note.textContent = 'A voz ' + VOICES[settings.voiceId].label.replace(' (original)', '') + ' ainda não foi baixada. Até lá, ele usa a voz do celular.'; }
     else { dl.style.display = 'none'; note.textContent = settings.voiceEngine === 'jarvis' ? 'Voz neural masculina que roda no celular, também sem internet.' : ''; }
   }
   es.onchange = () => { settings.voiceEngine = es.value; saveSettings(); refreshVoiceUI(); if (es.value === 'jarvis') warmJarvisVoice(); };
@@ -2440,7 +2806,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
   };
 
-  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { recoverFromFreeze, ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
+  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { needsSearch, tidyAnswer, fixArithmetic, wordsToNumbers, evalExpr, importantSentences, textToAnalyze, fixHeard, pickAlternative, endAtSentence, recoverFromFreeze, ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
 
   // ================= Início =================
   // Atualizou? Avisa uma vez: "Atualização concluída com sucesso"
