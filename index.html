@@ -323,7 +323,7 @@
 
 <script type="module">
   'use strict';
-  const APP_VERSION = 25;                       // muda a cada atualização (igual ao do sw.js)
+  const APP_VERSION = 26;                       // muda a cada atualização (igual ao do sw.js)
   const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/lib/index.js';
   const $ = s => document.querySelector(s);
   const log = $('#log'), live = $('#live');
@@ -863,6 +863,10 @@ async function handle({ id, type, text, tok }) {
   const errText = e => String(e && (e.message || e) || '');
   const isFatal = e => /memory|oom|device.?lost|quota|storage|network|fetch|failed to fetch|shader-f16|download parado/i.test(errText(e));
   const isNetErr = e => !!(e && e.stalled) || /network|fetch|load failed|connection|err_|tempo esgotado|aborted|download parado|dynamically imported/i.test(errText(e));
+  // A placa de vídeo do celular reiniciou e desligou o cérebro ("Object has already been disposed" = device lost)
+  const isGpuLost = e => !!(e && e.gpuLost) || (/already been disposed|device (was )?lost|instance\.dispose|context lost|gpu.{0,20}(crash|reset|lost)/i.test(errText(e)) && !/memory|oom|allocation/i.test(errText(e)));   // falta de memória tem tratamento próprio (troca de tamanho)
+  let gpuDead = false;                     // nesta abertura do app a placa travou de vez: responde no modo rápido até reabrir
+  const GPU_LOST_TEXT = 'A placa de vídeo do celular reiniciou e desligou o cérebro. Isso costuma acontecer com bateria fraca, economia de energia ligada ou muitos apps abertos. Feche o Jarvis por completo (tire ele dos apps recentes) e abra de novo. Enquanto isso, eu respondo no modo rápido, pesquisando na internet.';
   const isMemErr = e => /memory|oom|device.?lost|allocation|out of|buffer size|exceeds limit/i.test(errText(e));
   const RETRY_BASE = IDLE_T.retry || 2500, STALL_MS = IDLE_T.stall || 120000;
 
@@ -920,7 +924,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
         let lastErr = null;
         for (const [base, mb] of order) {
           const id = idFor(base);
-          let attempt = 0, useWorker = true;
+          let attempt = 0, useWorker = true, gpuRetry = 0;
           for (;;) {
             const inCache = await modelInCache(id);
             try {
@@ -930,6 +934,12 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
               lastErr = e; engine = null;
               // O ajudante em segundo plano não ligou: tenta direto, sem ele
               if (useWorker && e.noWorker) { useWorker = false; continue; }
+              // A placa de vídeo reiniciou no meio: espera ela voltar e tenta mais uma vez, do zero
+              if (isGpuLost(e) && ++gpuRetry <= 1) {
+                showLoader(true, 'A placa de vídeo reiniciou. Tentando ligar o cérebro de novo…', loadPct);
+                await new Promise(r => setTimeout(r, IDLE_T.gpuWait || 3000));
+                continue;
+              }
               // Internet travou ou caiu: espera um pouco e continua de onde parou (o que já baixou fica guardado)
               if (isNetErr(e) && navigator.onLine && ++attempt <= 4) {
                 showLoader(true, 'A conexão falhou. Tentando de novo (' + attempt + ' de 4)… O que já baixou está guardado.', loadPct);
@@ -951,6 +961,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
               .catch(() => {}).finally(() => { warmup = null; });
             return engine;
           }
+          if (isGpuLost(lastErr)) { gpuDead = true; throw Object.assign(new Error('placa de vídeo reiniciou (' + errText(lastErr) + ')'), { friendly: GPU_LOST_TEXT, gpuLost: true }); }
           if (isMemErr(lastErr)) break;
           if (isFatal(lastErr)) break;          // sem espaço / sem internet: não adianta tentar outra versão
         }
@@ -983,6 +994,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
   }
   function engineErrorText(e) {
     if (e && e.friendly) return e.friendly;
+    if (isGpuLost(e)) return GPU_LOST_TEXT;
     if (e && e.broken) return 'O cérebro respondeu coisas sem sentido neste celular. Escolha o tamanho Leve nas Configurações e tente de novo.';
     const m = String(e && (e.message || e) || '').toLowerCase();
     if (m.includes('shader-f16')) return 'Seu celular não suporta essa versão do cérebro. Tente o tamanho Leve.';
@@ -2209,8 +2221,8 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       }
 
       // Cérebro pronto? Se ainda estiver baixando (ou o celular não tiver placa compatível), responde rápido sem ele
-      let useBrain = !!engine && !settings.noBrain;
-      if (!engine && !settings.noBrain) {
+      let useBrain = !!engine && !settings.noBrain && !gpuDead;
+      if (!engine && !settings.noBrain && !gpuDead) {
         const g = await detectGPU();
         if (g.ok) {
           if (!loadingPromise && await isCached()) loadEngine().catch(() => {});
@@ -2227,7 +2239,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
           plan = { acao: 'pesquisar', consulta: cleanQuery(q) || q };     // sem cérebro: pesquisa e lê a resposta
       }
       if (useBrain) touchEngine();
-      setPhase('thinking'); hint(useBrain ? '' : settings.noBrain ? 'Modo rápido.' : 'Resposta rápida: o cérebro ainda está carregando.');
+      setPhase('thinking'); hint(useBrain ? '' : settings.noBrain ? 'Modo rápido.' : gpuDead ? 'Modo rápido: feche e abra o app para religar o cérebro.' : 'Resposta rápida: o cérebro ainda está carregando.');
 
       let material = '';
       if (plan.acao === 'texto') {
@@ -2336,6 +2348,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       if (myTurn !== turnId || !active) { bubble.remove(); return; }
       if (e && e.broken) reply = await fixBrokenBrain();
       else if (e && e.hung) reply = 'Meu cérebro travou, senhor, então eu reiniciei ele. Pode perguntar de novo.';
+      else if (isGpuLost(e)) { dropEngine(true); reply = 'A placa de vídeo do celular desligou o cérebro no meio da resposta, senhor. Pergunte de novo que eu religo ele. Se acontecer outra vez, feche o Jarvis e abra de novo.'; }
       else if (isMemErr(e)) {
         dropEngine(true);
         if (settings.model !== 'leve') { settings.model = settings.model === 'forte' ? 'padrao' : 'leve'; saveSettings(); cachedMemo = null; }
@@ -2530,7 +2543,13 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     });
   }
   // Baixa o cérebro e a voz offline, testa os dois, e avisa quando está pronto
+  let preparing = false;
   async function prepareAll() {
+    if (preparing) return;
+    preparing = true;
+    try { await prepareAllInner(); } finally { preparing = false; }
+  }
+  async function prepareAllInner() {
     if (!navigator.onLine) { addMsg('sys', 'Conecte-se à internet (de preferência Wi‑Fi) para preparar o Jarvis. Só precisa uma vez.'); return; }
     try {
       const est = await navigator.storage.estimate();
@@ -2558,7 +2577,9 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
       const m = addMsg('sys', engineErrorText(e));
       const d = document.createElement('div'); d.className = 'note'; d.style.marginTop = '6px'; d.textContent = 'Detalhe técnico: ' + short(errText(e), 160); m.appendChild(d);
       const b = document.createElement('button'); b.textContent = 'TENTAR DE NOVO'; b.className = 'retry';
-      b.onclick = () => { b.disabled = true; prepareAll(); }; m.appendChild(b);
+      b.onclick = () => { b.disabled = true; m.remove(); gpuDead = false; prepareAll(); }; m.appendChild(b);
+      document.querySelectorAll('.msg.sys[data-err="brain"]').forEach(x => { if (x !== m) x.remove(); });   // só a última mensagem de erro fica
+      m.dataset.err = 'brain';
       return;
     }
     let voiceOk = false;
@@ -2806,7 +2827,7 @@ self.onmessage = (msg) => handler.onmessage(msg);`;
     } catch (e) { $('#diag').textContent = 'Não consegui apagar: ' + (e.message || e); }
   };
 
-  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { needsSearch, tidyAnswer, fixArithmetic, wordsToNumbers, evalExpr, importantSentences, textToAnalyze, fixHeard, pickAlternative, endAtSentence, recoverFromFreeze, ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
+  if (window.__JARVIS_TEST_ENGINE || window.__JARVIS_FAKE_WEBLLM) window.__jarvisTest = { isGpuLost, getGpuDead: () => gpuDead, needsSearch, tidyAnswer, fixArithmetic, wordsToNumbers, evalExpr, importantSentences, textToAnalyze, fixHeard, pickAlternative, endAtSentence, recoverFromFreeze, ttsCancel, generate, getEngine: () => engine, loadEngine, settings: () => settings, quickReply, noBrain: () => { engine = null; loadingPromise = null; gpuInfo = { ok: false, why: 'teste' }; }, looksBroken, cleanForSpeech, idFor, useF16, memories: () => memories, episodes: () => episodes, extractFacts, pickMemories, relatedEpisodes, remember, mem: () => ({ stt: !!stt, tts: !!ttsW, engine: !!engine, audio: actx && actx.state, alarmTimer: !!alarmTimer, msgs: log.querySelectorAll('.msg').length, cache: cache.size }), releaseStt, releaseTts, modelInCache, route, relevant, tryMath, tryConvert, tryDates, planAction, planTimer, parseClock, planCalendar, alarms: () => alarms, setLast: p => { lastPlan = p; }, ttsCall, state: () => ({ jarvisVoiceReady, jarvisVoiceBroken, active, phase, speakToken, ctx: actx && actx.state }) };
 
   // ================= Início =================
   // Atualizou? Avisa uma vez: "Atualização concluída com sucesso"
